@@ -1,0 +1,18 @@
+# AIOX runtime (gerado em execução)
+.aiox/handoffs/
+.aiox/logs/
+.aiox/reports/
+.aiox/*.yaml
+
+# Claude Code
+.claude/projects/
+.claude/settings.local.json
+.claude/CLAUDE.md.backup.*
+
+# Node
+node_modules/
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
