@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ranking — Workshop Empresa Inquebrável</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ── Identidade Visual: Workshop Empresa Inquebrável ── */
+    /* Paleta extraída de workshop-inquebravel.lovable.app */
+    :root {
+      --gold:   #FFD700;
+      --silver: #B8C4D0;
+      --bronze: #CD8B4A;
+      --bg:     #0A0D13;   /* hsl(220 30% 6%) — background do site de referência */
+      --card1:  rgba(255,215,0,0.08);
+      --card2:  rgba(184,196,208,0.06);
+      --card3:  rgba(205,139,74,0.06);
+      --cardn:  rgba(0,220,255,0.04);
+      --accent: #00DCFF;   /* hsl(188 100% 50%) — cyan glow, cor de acento principal */
+      --text:   #F0F4F8;   /* hsl(210 40% 96%) — foreground */
+      --muted:  #7588A3;   /* hsl(215 20% 55%) — muted-foreground */
+      --green:  #23C178;   /* hsl(152 69% 45%) — green-action */
+      --font-display: 'Space Grotesk', sans-serif;
+      --font-body:    'Inter', sans-serif;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── ANIMATED BACKGROUND ── */
+    .bg-mesh {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .bg-mesh::before {
+      content: '';
+      position: absolute;
+      width: 140%;
+      height: 140%;
+      top: -20%;
+      left: -20%;
+      /* Gradientes do site de referência: cyan (#00DCFF) + blue (#007FFF) + green (#23C178) */
+      background: radial-gradient(ellipse at 50% 0%,   rgba(0,220,255,0.09) 0%, transparent 60%),
+                  radial-gradient(ellipse at 20% 60%,  rgba(0,127,255,0.08) 0%, transparent 55%),
+                  radial-gradient(ellipse at 80% 40%,  rgba(35,193,120,0.06) 0%, transparent 55%);
+      animation: meshMove 12s ease-in-out infinite alternate;
+    }
+    @keyframes meshMove {
+      from { transform: translate(0,0) rotate(0deg); }
+      to   { transform: translate(3%,2%) rotate(3deg); }
+    }
+
+    /* Floating particles */
+    .particles { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+    .particle {
+      position: absolute;
+      border-radius: 50%;
+      opacity: 0;
+      animation: float linear infinite;
+    }
+    @keyframes float {
+      0%   { transform: translateY(110vh) scale(0); opacity: 0; }
+      10%  { opacity: 0.6; }
+      90%  { opacity: 0.3; }
+      100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+    }
+
+    /* ── LAYOUT ── */
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    /* ── HEADER ── */
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+    .event-logo {
+      font-size: 2.8rem;
+      margin-bottom: 0.5rem;
+      animation: bounce 2.5s ease-in-out infinite;
+    }
+    @keyframes bounce {
+      0%,100% { transform: translateY(0); }
+      50%      { transform: translateY(-8px); }
+    }
+    .event-title {
+      font-family: var(--font-display);
+      font-size: clamp(1.8rem, 5vw, 3rem);
+      font-weight: 900;
+      letter-spacing: -0.025em;
+      text-transform: uppercase;
+      /* Gradiente cyan → blue → green do site de referência */
+      background: linear-gradient(135deg, #00DCFF 0%, #007FFF 50%, #23C178 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      background-size: 200%;
+      animation: gradShift 5s ease-in-out infinite alternate;
+    }
+    @keyframes gradShift {
+      from { background-position: 0% 50%; }
+      to   { background-position: 100% 50%; }
+    }
+    .event-subtitle {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-top: 0.3rem;
+    }
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(35,193,120,0.10);
+      border: 1px solid rgba(35,193,120,0.30);
+      color: #23C178;
+      font-size: 0.7rem;
+      font-weight: 700;
+      font-family: var(--font-display);
+      letter-spacing: 0.14em;
+      padding: 0.3rem 0.9rem;
+      border-radius: 999px;
+      margin-top: 0.75rem;
+    }
+    .live-dot {
+      width: 7px; height: 7px;
+      background: #23C178;
+      border-radius: 50%;
+      animation: livePulse 1.4s ease-in-out infinite;
+    }
+    @keyframes livePulse {
+      0%,100% { transform: scale(1); opacity: 1; }
+      50%      { transform: scale(0.6); opacity: 0.4; }
+    }
+
+    /* ── EMPTY STATE ── */
+    .empty {
+      text-align: center;
+      padding: 5rem 1rem;
+      color: var(--muted);
+    }
+    .empty .icon { font-size: 3.5rem; margin-bottom: 1rem; }
+    .empty h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text); }
+
+    /* ── RANKING LIST ── */
+    #ranking-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+    /* ── RANK CARD ── */
+    .rank-card {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 1rem;
+      border-radius: 1rem;
+      padding: 1rem 1.25rem;
+      border: 1px solid rgba(255,255,255,0.06);
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.5s cubic-bezier(0.34,1.56,0.64,1),
+                  opacity 0.4s ease,
+                  box-shadow 0.4s ease;
+      animation: cardIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+      cursor: default;
+    }
+    .rank-card:hover { transform: translateX(6px) scale(1.01); }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(30px) scale(0.95); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Top 3 card backgrounds */
+    .rank-card.pos-1 {
+      background: linear-gradient(135deg, rgba(255,215,0,0.12) 0%, rgba(13,15,26,0.95) 60%);
+      border-color: rgba(255,215,0,0.25);
+      box-shadow: 0 0 30px rgba(255,215,0,0.08), inset 0 1px 0 rgba(255,215,0,0.1);
+    }
+    .rank-card.pos-2 {
+      background: linear-gradient(135deg, rgba(184,196,208,0.1) 0%, rgba(13,15,26,0.95) 60%);
+      border-color: rgba(184,196,208,0.2);
+    }
+    .rank-card.pos-3 {
+      background: linear-gradient(135deg, rgba(205,139,74,0.1) 0%, rgba(13,15,26,0.95) 60%);
+      border-color: rgba(205,139,74,0.2);
+    }
+    .rank-card.pos-n {
+      background: var(--cardn);
+    }
+
+    /* Shimmer on 1st place */
+    .rank-card.pos-1::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(105deg, transparent 40%, rgba(255,215,0,0.06) 50%, transparent 60%);
+      background-size: 200%;
+      animation: shimmer 3s ease-in-out infinite;
+    }
+    @keyframes shimmer {
+      from { background-position: -100%; }
+      to   { background-position: 200%; }
+    }
+
+    /* ── SHIELD BADGE ── */
+    .shield-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .shield {
+      width: 52px;
+      height: 58px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .shield-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .shield-pos {
+      position: relative;
+      z-index: 1;
+      font-size: 1.1rem;
+      font-weight: 900;
+      line-height: 1;
+    }
+    .shield-icon {
+      position: relative;
+      z-index: 1;
+      font-size: 1.3rem;
+      line-height: 1;
+    }
+
+    /* Glow animation on top 3 shields */
+    .pos-1 .shield { animation: shieldGlow1 2.5s ease-in-out infinite alternate; }
+    .pos-2 .shield { animation: shieldGlow2 2.5s ease-in-out infinite alternate; }
+    .pos-3 .shield { animation: shieldGlow3 2.5s ease-in-out infinite alternate; }
+    @keyframes shieldGlow1 {
+      from { filter: drop-shadow(0 0 4px rgba(255,215,0,0.4)); }
+      to   { filter: drop-shadow(0 0 12px rgba(255,215,0,0.8)); }
+    }
+    @keyframes shieldGlow2 {
+      from { filter: drop-shadow(0 0 3px rgba(184,196,208,0.3)); }
+      to   { filter: drop-shadow(0 0 10px rgba(184,196,208,0.7)); }
+    }
+    @keyframes shieldGlow3 {
+      from { filter: drop-shadow(0 0 3px rgba(205,139,74,0.3)); }
+      to   { filter: drop-shadow(0 0 10px rgba(205,139,74,0.7)); }
+    }
+
+    /* ── CARD BODY ── */
+    .card-body { min-width: 0; }
+
+    .card-header {
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
+      margin-bottom: 0.35rem;
+    }
+    .group-name {
+      font-weight: 800;
+      font-size: 1.05rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .pos-1 .group-name { color: var(--gold); }
+    .pos-2 .group-name { color: var(--silver); }
+    .pos-3 .group-name { color: var(--bronze); }
+
+    .group-members {
+      font-size: 0.72rem;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Score bar (Mentimeter style) */
+    .bar-track {
+      height: 8px;
+      background: rgba(255,255,255,0.07);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.9s cubic-bezier(0.34, 1.2, 0.64, 1);
+      width: 0%;
+    }
+    .pos-1 .bar-fill { background: linear-gradient(90deg, #B8860B, #FFD700, #FFF176); }
+    .pos-2 .bar-fill { background: linear-gradient(90deg, #607D8B, #B8C4D0, #ECEFF1); }
+    .pos-3 .bar-fill { background: linear-gradient(90deg, #8B5A00, #CD8B4A, #F5C98A); }
+    .pos-n .bar-fill { background: linear-gradient(90deg, #007FFF, #00DCFF); }
+
+    /* ── SCORE ── */
+    .score-col {
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .score-value {
+      font-family: var(--font-display);
+      font-size: 1.6rem;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      font-variant-numeric: tabular-nums;
+      transition: color 0.3s;
+    }
+    .pos-1 .score-value { color: var(--gold); }
+    .pos-2 .score-value { color: var(--silver); }
+    .pos-3 .score-value { color: var(--bronze); }
+    .pos-n .score-value { color: #00DCFF; text-shadow: 0 0 10px rgba(0,220,255,0.40); }
+    .score-label {
+      font-size: 0.62rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* ── SCORE UPDATE FLASH — cyan glow do site de referência ── */
+    .rank-card.updated {
+      animation: scoreFlash 0.8s ease;
+    }
+    @keyframes scoreFlash {
+      0%   { box-shadow: 0 0 0 2px rgba(0,220,255,0.8), 0 0 25px rgba(0,220,255,0.3); }
+      100% { box-shadow: none; }
+    }
+
+    /* ── POSITION CHANGE BADGE ── */
+    .pos-change {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.15rem 0.4rem;
+      border-radius: 999px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .pos-change.up   { background: rgba(16,185,129,0.2); color: #34D399; opacity: 1; }
+    .pos-change.down { background: rgba(239,68,68,0.2);  color: #F87171; opacity: 1; }
+
+    /* ── PÓDIO ── */
+    .podium-section {
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+      padding: 0 0.5rem;
+    }
+    .podium-slot {
+      flex: 1;
+      max-width: 280px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      animation: cardIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+    .podium-slot:nth-child(1) { animation-delay: 0.1s; } /* 2º */
+    .podium-slot:nth-child(2) { animation-delay: 0s; }   /* 1º */
+    .podium-slot:nth-child(3) { animation-delay: 0.2s; } /* 3º */
+
+    .podium-card {
+      width: 100%;
+      border-radius: 1rem;
+      padding: 1.25rem 1rem 1rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.06);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .podium-card:hover { transform: translateY(-4px); }
+
+    .podium-1 {
+      background: linear-gradient(160deg, rgba(255,215,0,0.18) 0%, rgba(13,15,26,0.97) 70%);
+      border-color: rgba(255,215,0,0.35);
+      box-shadow: 0 0 40px rgba(255,215,0,0.12), inset 0 1px 0 rgba(255,215,0,0.15);
+    }
+    .podium-1::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(105deg, transparent 40%, rgba(255,215,0,0.07) 50%, transparent 60%);
+      background-size: 200%;
+      animation: shimmer 3s ease-in-out infinite;
+    }
+    .podium-2 {
+      background: linear-gradient(160deg, rgba(184,196,208,0.12) 0%, rgba(13,15,26,0.97) 70%);
+      border-color: rgba(184,196,208,0.25);
+    }
+    .podium-3 {
+      background: linear-gradient(160deg, rgba(205,139,74,0.12) 0%, rgba(13,15,26,0.97) 70%);
+      border-color: rgba(205,139,74,0.25);
+    }
+
+    .podium-crown { font-size: 1.6rem; margin-bottom: 0.4rem; }
+    .podium-shield-wrap {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 0.75rem;
+    }
+    .podium-1 .shield { animation: shieldGlow1 2.5s ease-in-out infinite alternate; }
+    .podium-2 .shield { animation: shieldGlow2 2.5s ease-in-out infinite alternate; }
+    .podium-3 .shield { animation: shieldGlow3 2.5s ease-in-out infinite alternate; }
+
+    .podium-name {
+      font-weight: 800;
+      font-size: 1rem;
+      margin-bottom: 0.25rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+    .podium-1 .podium-name { color: var(--gold); }
+    .podium-2 .podium-name { color: var(--silver); }
+    .podium-3 .podium-name { color: var(--bronze); }
+
+    .podium-members {
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-bottom: 0.6rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .podium-score {
+      font-family: var(--font-display);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      font-variant-numeric: tabular-nums;
+    }
+    .podium-1 .podium-score { font-size: 2.2rem; color: var(--gold); }
+    .podium-2 .podium-score { font-size: 1.8rem; color: var(--silver); }
+    .podium-3 .podium-score { font-size: 1.8rem; color: var(--bronze); }
+
+    .podium-pts-label {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+    }
+
+    /* Platform base below podium card */
+    .podium-base {
+      width: 100%;
+      border-radius: 0 0 0.5rem 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-display);
+      font-weight: 900;
+      letter-spacing: 0.05em;
+    }
+    .podium-base-1 { background: linear-gradient(135deg, #B8860B, #FFD700); height: 64px; color: #000; font-size: 1.5rem; box-shadow: 0 8px 24px rgba(255,215,0,0.25); }
+    .podium-base-2 { background: linear-gradient(135deg, #607D8B, #B8C4D0); height: 48px; color: #000; font-size: 1.2rem; }
+    .podium-base-3 { background: linear-gradient(135deg, #8B5A00, #CD8B4A); height: 36px; color: #000; font-size: 1.1rem; }
+
+    /* ── LISTA (4º em diante) ── */
+    .list-section { display: flex; flex-direction: column; gap: 0.6rem; }
+    .list-divider {
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 0.25rem;
+      opacity: 0.6;
+    }
+
+    /* ── FOOTER ── */
+    .footer {
+      text-align: center;
+      margin-top: 2rem;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    /* ── TOAST ── */
+    .toast-container {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .toast {
+      background: rgba(30,35,60,0.95);
+      border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(12px);
+      border-radius: 0.6rem;
+      padding: 0.65rem 1rem;
+      font-size: 0.82rem;
+      animation: toastIn 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    @keyframes toastIn {
+      from { transform: translateX(120%); opacity: 0; }
+      to   { transform: translateX(0);   opacity: 1; }
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 600px) {
+      .shield { width: 42px; height: 48px; }
+      .shield-pos { font-size: 0.95rem; }
+      .score-value { font-size: 1.3rem; }
+      .group-name { font-size: 0.95rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg-mesh"></div>
+<div class="particles" id="particles"></div>
+
+<div class="page">
+
+  <header>
+    <!-- Logo oficial Empresa Inquebrável -->
+    <div style="display:flex;justify-content:center;margin-bottom:0.75rem">
+      <img src="https://workshop-inquebravel.lovable.app/assets/logo-ei-B3hWKkiO.png"
+           alt="Empresa Inquebrável"
+           style="height:72px;width:auto;filter:drop-shadow(0 0 16px rgba(0,220,255,0.40));object-fit:contain" />
+    </div>
+    <!-- Badge de edição — replicando o badge do site de referência -->
+    <div style="display:flex;justify-content:center;margin-bottom:0.4rem">
+      <span style="font-family:'Space Grotesk',sans-serif;font-size:0.6rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#00DCFF;border:1px solid rgba(0,220,255,0.25);padding:0.2rem 0.75rem;border-radius:999px;background:rgba(0,220,255,0.07)">
+        WORKSHOP
+      </span>
+    </div>
+    <h1 class="event-title" id="event-title">Empresa Inquebrável</h1>
+    <p class="event-subtitle" id="event-subtitle">Ranking ao Vivo</p>
+    <div class="live-badge">
+      <span class="live-dot"></span>
+      AO VIVO
+    </div>
+  </header>
+
+  <div id="ranking-list"></div>
+
+  <div class="footer">
+    Atualizado em <span id="last-update">—</span>
+  </div>
+
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+  // ─── STATE ───────────────────────────────────────────
+  let supabase = null;
+  let prevPositions = {};   // groupId → position (for change indicators)
+  let prevScores = {};      // groupId → score (for flash)
+  let maxScore = 0;
+
+  // ─── INIT ────────────────────────────────────────────
+  async function init() {
+    spawnParticles();
+
+    const cfg = await fetch('/api/config').then(r => r.json());
+    document.getElementById('event-title').textContent   = cfg.event.name;
+    document.getElementById('event-subtitle').textContent = `2026 · Ranking ao Vivo`;
+
+    supabase = createClient(cfg.supabase.url, cfg.supabase.anonKey);
+
+    await loadRanking();
+    subscribeRealtime();
+  }
+
+  // ─── LOAD ─────────────────────────────────────────────
+  async function loadRanking() {
+    const res = await fetch('/api/groups');
+    if (!res.ok) return;
+    const data = await res.json();
+    maxScore = data[0]?.total_points || 1;
+    render(data);
+    document.getElementById('last-update').textContent =
+      new Date().toLocaleTimeString('pt-BR');
+  }
+
+  // ─── RENDER ───────────────────────────────────────────
+  function render(groups) {
+    const container = document.getElementById('ranking-list');
+
+    if (!groups.length) {
+      container.innerHTML = `
+        <div class="empty">
+          <div class="icon">🏁</div>
+          <h3>O evento ainda não começou</h3>
+          <p>Os grupos aparecerão aqui em tempo real.</p>
+        </div>`;
+      return;
+    }
+
+    maxScore = Math.max(groups[0]?.total_points || 1, 1);
+    const newPositions = {};
+    groups.forEach(g => newPositions[g.id] = g.position);
+
+    const top3   = groups.slice(0, 3);
+    const rest   = groups.slice(3);
+
+    // ── PÓDIO (top 3) ─────────────────────────────────
+    const podiumOrder = top3.length >= 3
+      ? [top3[1], top3[0], top3[2]]   // 2º | 1º | 3º
+      : top3.length === 2
+        ? [top3[1], top3[0]]
+        : top3;
+
+    const crowns   = ['👑', '', ''];
+    const podiumCl = ['podium-2', 'podium-1', 'podium-3'];
+    const baseH    = ['podium-base-2', 'podium-base-1', 'podium-base-3'];
+    const rankNums = [2, 1, 3];
+
+    const podiumHTML = podiumOrder.length ? `
+      <div class="podium-section">
+        ${podiumOrder.map((g, i) => {
+          const realIdx  = rankNums[i] - 1;
+          const pos      = g.position;
+          const pClass   = podiumCl[i];
+          const isUpdated = prevScores[g.id] !== undefined && prevScores[g.id] !== g.total_points;
+          const members  = Array.isArray(g.participants)
+            ? g.participants.map(p => p.name).join(' · ')
+            : '';
+          const prevPos  = prevPositions[g.id];
+          let changeBadge = '';
+          if (prevPos && prevPos !== pos) {
+            changeBadge = prevPos > pos
+              ? `<span class="pos-change up">▲ ${prevPos - pos}</span>`
+              : `<span class="pos-change down">▼ ${pos - prevPos}</span>`;
+          }
+          return `
+            <div class="podium-slot">
+              <div class="podium-card ${pClass} ${isUpdated ? 'updated' : ''}" id="card-${g.id}">
+                ${changeBadge}
+                ${pos === 1 ? '<div class="podium-crown">👑</div>' : ''}
+                <div class="podium-shield-wrap">${shieldSVG(pos, g.color)}</div>
+                <div class="podium-name">${esc(g.name)}</div>
+                ${members ? `<div class="podium-members">${esc(members)}</div>` : ''}
+                <div class="podium-score" id="score-${g.id}">${g.total_points}</div>
+                <div class="podium-pts-label">pontos</div>
+                <div class="bar-track" style="margin-top:0.6rem">
+                  <div class="bar-fill" id="bar-${g.id}" style="width:0%"></div>
+                </div>
+              </div>
+              <div class="podium-base ${baseH[i]}">${pos}º</div>
+            </div>`;
+        }).join('')}
+      </div>` : '';
+
+    // ── LISTA (4º em diante) ───────────────────────────
+    const listHTML = rest.length ? `
+      <div class="list-divider">— classificação geral —</div>
+      <div class="list-section">
+        ${rest.map((g, idx) => {
+          const pos       = g.position;
+          const isUpdated = prevScores[g.id] !== undefined && prevScores[g.id] !== g.total_points;
+          const members   = Array.isArray(g.participants)
+            ? g.participants.map(p => p.name).join(' · ')
+            : '';
+          const prevPos   = prevPositions[g.id];
+          let changeBadge = '';
+          if (prevPos && prevPos !== pos) {
+            changeBadge = prevPos > pos
+              ? `<span class="pos-change up">▲ ${prevPos - pos}</span>`
+              : `<span class="pos-change down">▼ ${pos - prevPos}</span>`;
+          }
+          return `
+            <div class="rank-card pos-n ${isUpdated ? 'updated' : ''}"
+                 id="card-${g.id}"
+                 style="animation-delay:${(idx + 3) * 0.06}s">
+              ${changeBadge}
+              <div class="shield-wrap">${shieldSVG(pos, g.color)}</div>
+              <div class="card-body">
+                <div class="card-header">
+                  <span class="group-name">${esc(g.name)}</span>
+                </div>
+                ${members ? `<div class="group-members">${esc(members)}</div>` : '<div style="height:0.75rem"></div>'}
+                <div class="bar-track">
+                  <div class="bar-fill" id="bar-${g.id}" style="width:0%"></div>
+                </div>
+              </div>
+              <div class="score-col">
+                <div class="score-value" id="score-${g.id}">${g.total_points}</div>
+                <div class="score-label">pts</div>
+              </div>
+            </div>`;
+        }).join('')}
+      </div>` : '';
+
+    container.innerHTML = podiumHTML + listHTML;
+
+    // Animate bars after paint
+    requestAnimationFrame(() => {
+      groups.forEach(g => {
+        const bar = document.getElementById(`bar-${g.id}`);
+        if (bar) {
+          const pct = Math.max(4, Math.round((g.total_points / maxScore) * 100));
+          bar.style.width = `${pct}%`;
+        }
+      });
+    });
+
+    prevPositions = newPositions;
+    groups.forEach(g => { prevScores[g.id] = g.total_points; });
+  }
+
+  // ─── SHIELD SVG ───────────────────────────────────────
+  function shieldSVG(pos, groupColor) {
+    const colors = {
+      1: { fill: '#FFD700', stroke: '#B8860B', label: '👑' },
+      2: { fill: '#B8C4D0', stroke: '#607D8B', label: '🥈' },
+      3: { fill: '#CD8B4A', stroke: '#8B5A00', label: '🥉' },
+    };
+    const cfg = colors[pos] || { fill: groupColor || '#007FFF', stroke: '#1663CE', label: null };
+
+    const icon = pos <= 3
+      ? `<div class="shield-icon">${cfg.label}</div>`
+      : `<div class="shield-pos" style="color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.5)">${pos}º</div>`;
+
+    return `
+      <div class="shield">
+        <svg class="shield-svg" viewBox="0 0 52 58" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M26 2L4 10V28C4 41 14 52 26 56C38 52 48 41 48 28V10L26 2Z"
+                fill="${cfg.fill}" fill-opacity="0.18"
+                stroke="${cfg.fill}" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M26 6L7 13V28C7 39.5 15.5 50 26 54C36.5 50 45 39.5 45 28V13L26 6Z"
+                fill="${cfg.fill}" fill-opacity="0.08"/>
+        </svg>
+        ${icon}
+      </div>`;
+  }
+
+  // ─── REALTIME ─────────────────────────────────────────
+  function subscribeRealtime() {
+    supabase
+      .channel('ranking-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'scores' },       handleChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'groups' },       handleChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'participants' }, handleChange)
+      .subscribe();
+  }
+
+  async function handleChange() {
+    await loadRanking();
+    toast('🎯 Ranking atualizado!');
+  }
+
+  // ─── PARTICLES ────────────────────────────────────────
+  function spawnParticles() {
+    const container = document.getElementById('particles');
+    /* Cores das partículas — paleta do Workshop Empresa Inquebrável */
+    const colors = ['#00DCFF','#007FFF','#23C178','#FFD700','#1663CE'];
+    for (let i = 0; i < 22; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      const size = Math.random() * 5 + 2;
+      p.style.cssText = `
+        width:${size}px; height:${size}px;
+        left:${Math.random()*100}%;
+        background:${colors[Math.floor(Math.random()*colors.length)]};
+        animation-duration:${12+Math.random()*18}s;
+        animation-delay:${Math.random()*20}s;
+      `;
+      container.appendChild(p);
+    }
+  }
+
+  // ─── UTILS ────────────────────────────────────────────
+  function esc(str) {
+    return String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function toast(msg) {
+    const c = document.getElementById('toasts');
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+  }
+
+  init().catch(console.error);
+</script>
+</body>
+</html>

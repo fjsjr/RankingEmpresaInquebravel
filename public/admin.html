@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Workshop Empresa Inquebrável</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- LOGIN -->
+  <div id="login-screen" class="login-container">
+    <div class="login-card">
+      <!-- Logo oficial Empresa Inquebrável -->
+      <div style="display:flex;justify-content:center;margin-bottom:1rem">
+        <img src="https://workshop-inquebravel.lovable.app/assets/logo-ei-B3hWKkiO.png"
+             alt="Empresa Inquebrável"
+             style="height:72px;width:auto;filter:drop-shadow(0 0 12px rgba(0,220,255,0.35));object-fit:contain" />
+      </div>
+      <h2 class="login-title" style="font-family:'Space Grotesk',sans-serif;letter-spacing:-0.02em;color:#F0F4F8">Painel Admin</h2>
+      <p class="login-subtitle">Workshop Empresa Inquebrável — Controle de Ranking</p>
+      <div class="form-group">
+        <label for="login-password">Senha de Acesso</label>
+        <input type="password" id="login-password" placeholder="Digite a senha..." />
+      </div>
+      <button class="btn btn-primary btn-full" onclick="doLogin()">Entrar</button>
+      <div id="login-error" style="color:#FCA5A5;font-size:0.8rem;margin-top:0.75rem;display:none">
+        Senha incorreta
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN PANEL -->
+  <div id="admin-panel" style="display:none" class="admin-layout">
+
+    <aside class="admin-sidebar">
+      <div style="margin-bottom:1.5rem">
+        <!-- Logo oficial Empresa Inquebrável no sidebar -->
+        <div style="display:flex;align-items:center;gap:0.625rem;margin-bottom:0.5rem">
+          <img src="https://workshop-inquebravel.lovable.app/assets/logo-ei-B3hWKkiO.png"
+               alt="EI"
+               style="height:36px;width:auto;flex-shrink:0;filter:drop-shadow(0 0 6px rgba(0,220,255,0.30));object-fit:contain" />
+          <div>
+            <div style="font-family:'Space Grotesk',sans-serif;font-size:0.95rem;font-weight:800;color:#00DCFF;letter-spacing:-0.01em;text-transform:uppercase">Admin</div>
+            <div style="font-size:0.65rem;color:var(--text-secondary);letter-spacing:0.05em;text-transform:uppercase">Painel de Controle</div>
+          </div>
+        </div>
+        <div style="font-size:0.7rem;color:rgba(0,220,255,0.5);letter-spacing:0.08em;text-transform:uppercase;border-top:1px solid rgba(0,220,255,0.12);padding-top:0.5rem">Workshop Empresa Inquebrável</div>
+      </div>
+
+      <nav class="admin-nav">
+        <button class="nav-item active" onclick="showSection('groups')" id="nav-groups">👥 Grupos</button>
+        <button class="nav-item" onclick="showSection('scores')" id="nav-scores">🎯 Pontuação</button>
+        <button class="nav-item" onclick="showSection('ai')" id="nav-ai">🤖 Análise IA</button>
+        <button class="nav-item" onclick="showSection('history')" id="nav-history">📋 Histórico</button>
+      </nav>
+
+      <div style="padding-top:1.5rem;border-top:1px solid var(--border);margin-top:2rem">
+        <a href="/" target="_blank" class="btn btn-ghost btn-full btn-sm">📊 Ver Ranking</a>
+        <button class="btn btn-danger btn-full btn-sm" style="margin-top:0.5rem" onclick="showResetModal()">🗑️ Resetar Sistema</button>
+        <button class="btn btn-ghost btn-full btn-sm" style="margin-top:0.5rem;opacity:0.6" onclick="doLogout()">Sair</button>
+      </div>
+    </aside>
+
+    <main class="admin-main">
+
+      <!-- GRUPOS -->
+      <section id="section-groups">
+        <div class="admin-header"><h2>👥 Gerenciar Grupos</h2></div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+          <div class="card">
+            <div class="card-title">➕ Criar Grupo</div>
+            <div class="form-group">
+              <label>Nome do Grupo</label>
+              <input type="text" id="new-group-name" placeholder="Ex: Equipe Fênix" maxlength="100" />
+            </div>
+            <div class="form-group">
+              <label>Cor do Grupo</label>
+              <input type="color" id="new-group-color" value="#007FFF" />
+            </div>
+            <button class="btn btn-primary btn-full" onclick="createGroup()">Criar Grupo</button>
+          </div>
+
+          <div class="card">
+            <div class="card-title">👤 Adicionar Participante</div>
+            <div class="form-group">
+              <label>Grupo</label>
+              <select id="participant-group-select"><option value="">Selecione um grupo...</option></select>
+            </div>
+            <div class="form-group">
+              <label>Nome do Participante</label>
+              <input type="text" id="new-participant-name" placeholder="Nome completo" maxlength="100" />
+            </div>
+            <button class="btn btn-primary btn-full" onclick="addParticipant()">Adicionar Participante</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:0">
+          <div class="card-title">📋 Grupos Cadastrados</div>
+          <div id="groups-list"><p style="color:var(--text-secondary);font-size:0.875rem">Carregando...</p></div>
+        </div>
+      </section>
+
+      <!-- PONTUAÇÃO MANUAL -->
+      <section id="section-scores" style="display:none">
+        <div class="admin-header" style="display:flex;align-items:center;justify-content:space-between">
+          <h2>🎯 Adicionar Pontuação</h2>
+          <button class="btn btn-danger btn-sm" onclick="confirmResetScores()" style="font-size:0.75rem;padding:0.4rem 0.875rem">
+            🗑️ Zerar todas as pontuações
+          </button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🎯 Nova Pontuação</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+            <div class="form-group">
+              <label>Grupo</label>
+              <select id="score-group-select"><option value="">Selecione um grupo...</option></select>
+            </div>
+            <div class="form-group">
+              <label>Pontos</label>
+              <input type="number" id="score-points" placeholder="Ex: 50" min="-500" max="1000" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Motivo / Atividade</label>
+            <input type="text" id="score-reason" placeholder="Descreva o motivo da pontuação" maxlength="200" />
+          </div>
+          <div class="form-group">
+            <label>Responsável</label>
+            <input type="text" id="score-by" placeholder="Seu nome" maxlength="100" />
+          </div>
+          <button class="btn btn-success btn-full" onclick="addManualScore()">✅ Confirmar Pontuação</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">📊 Ranking Atual</div>
+          <div id="quick-ranking"></div>
+        </div>
+      </section>
+
+      <!-- ANÁLISE IA -->
+      <section id="section-ai" style="display:none">
+        <div class="admin-header"><h2>🤖 Análise por IA — Ranking de Respostas</h2></div>
+
+        <!-- Step 1: desafio -->
+        <div class="card">
+          <div class="card-title">📋 Desafio / Pergunta</div>
+          <div class="form-group" style="margin-bottom:0">
+            <textarea id="ai-challenge"
+              placeholder="Descreva a pergunta ou desafio respondido pelos grupos..."
+              style="min-height:70px"></textarea>
+          </div>
+        </div>
+
+        <!-- Step 2: respostas dos grupos -->
+        <div class="card">
+          <div class="card-title" style="justify-content:space-between;display:flex;align-items:center">
+            <span>✍️ Respostas dos Grupos</span>
+            <button class="btn btn-ghost btn-sm" onclick="clearAllResponses()">Limpar tudo</button>
+          </div>
+          <div id="ai-responses-grid" style="display:flex;flex-direction:column;gap:0.75rem;max-height:55vh;overflow-y:auto;padding-right:0.25rem">
+            <p style="color:var(--text-secondary);font-size:0.875rem">Carregando grupos...</p>
+          </div>
+        </div>
+
+        <button class="btn btn-primary btn-full" id="ai-rank-btn" onclick="rankWithAI()" style="margin-bottom:1.5rem">
+          🤖 Analisar e Rankear com IA
+        </button>
+
+        <!-- Step 3: resultado do ranking -->
+        <div id="ai-ranking-result" style="display:none">
+
+          <!-- Painel de Síntese Geral -->
+          <div class="card" style="margin-bottom:1rem">
+            <div class="card-title">🧠 Agente Avaliador Trino — Análise</div>
+            <p id="ai-summary" style="font-size:0.875rem;color:var(--text-primary);margin-bottom:1.25rem;line-height:1.6;font-style:italic;border-left:3px solid var(--accent);padding-left:0.75rem"></p>
+
+            <!-- Três visões -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0.75rem;margin-bottom:1.25rem">
+              <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:0.75rem;padding:1rem">
+                <div style="font-weight:700;font-size:0.8rem;color:#60a5fa;margin-bottom:0.4rem;letter-spacing:0.05em">📊 VISÃO GATES</div>
+                <div style="font-size:0.78rem;color:var(--text-secondary);line-height:1.55" id="ai-visao-gates">—</div>
+              </div>
+              <div style="background:rgba(251,146,60,0.08);border:1px solid rgba(251,146,60,0.25);border-radius:0.75rem;padding:1rem">
+                <div style="font-weight:700;font-size:0.8rem;color:#fb923c;margin-bottom:0.4rem;letter-spacing:0.05em">🎯 VISÃO BEZOS</div>
+                <div style="font-size:0.78rem;color:var(--text-secondary);line-height:1.55" id="ai-visao-bezos">—</div>
+              </div>
+              <div style="background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.25);border-radius:0.75rem;padding:1rem">
+                <div style="font-weight:700;font-size:0.8rem;color:#a78bfa;margin-bottom:0.4rem;letter-spacing:0.05em">🚀 VISÃO MUSK</div>
+                <div style="font-size:0.78rem;color:var(--text-secondary);line-height:1.55" id="ai-visao-musk">—</div>
+              </div>
+            </div>
+
+            <!-- Síntese final -->
+            <div id="ai-sintese-wrapper" style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:0.75rem;padding:0.875rem;display:none">
+              <div style="font-weight:700;font-size:0.8rem;color:#34d399;margin-bottom:0.35rem;letter-spacing:0.05em">💡 ORIENTAÇÃO ESTRATÉGICA</div>
+              <div style="font-size:0.78rem;color:var(--text-secondary);line-height:1.55" id="ai-sintese-final"></div>
+            </div>
+          </div>
+
+          <!-- Tabela de ranking -->
+          <div class="card">
+            <div class="card-title">🏆 Ranking sugerido pela IA</div>
+            <div style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+                <thead>
+                  <tr style="border-bottom:1px solid var(--border)">
+                    <th style="text-align:left;padding:0.4rem 0.5rem;color:var(--text-secondary);font-weight:600">#</th>
+                    <th style="text-align:left;padding:0.4rem 0.5rem;color:var(--text-secondary);font-weight:600">Grupo</th>
+                    <th style="text-align:center;padding:0.4rem 0.5rem;color:var(--text-secondary);font-weight:600">Pts</th>
+                    <th style="text-align:left;padding:0.4rem 0.5rem;color:var(--text-secondary);font-weight:600">Justificativa</th>
+                  </tr>
+                </thead>
+                <tbody id="ai-ranking-table"></tbody>
+              </table>
+            </div>
+
+            <div style="display:flex;gap:0.75rem;margin-top:1.25rem">
+              <button class="btn btn-success" onclick="confirmAllScores()" style="flex:1">
+                ✅ Confirmar e Salvar Todos
+              </button>
+              <button class="btn btn-ghost" onclick="resetAIRanking()">🔄 Nova Análise</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- HISTÓRICO -->
+      <section id="section-history" style="display:none">
+        <div class="admin-header"><h2>📋 Histórico de Pontuações</h2></div>
+
+        <div class="card">
+          <div class="form-group" style="margin-bottom:0">
+            <label>Filtrar por Grupo</label>
+            <select id="history-group-filter" onchange="loadHistory()"><option value="">Todos os grupos</option></select>
+          </div>
+        </div>
+
+        <div class="card">
+          <div id="history-list"><p style="color:var(--text-secondary);font-size:0.875rem">Selecione um grupo para ver o histórico.</p></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MODAL DE RESET -->
+  <div id="reset-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:999;display:none;align-items:center;justify-content:center">
+    <div style="background:var(--bg-card);border:1px solid rgba(239,68,68,0.4);border-radius:1rem;padding:2rem;max-width:400px;width:90%;text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:0.75rem">⚠️</div>
+      <h3 style="font-size:1.2rem;font-weight:700;margin-bottom:0.5rem">Resetar Sistema</h3>
+      <p style="color:var(--text-secondary);font-size:0.875rem;margin-bottom:1.5rem">
+        Escolha o que deseja apagar. Esta ação <strong style="color:#FCA5A5">não pode ser desfeita</strong>.
+      </p>
+      <div style="display:flex;flex-direction:column;gap:0.75rem">
+        <button class="btn btn-danger btn-full" onclick="resetScores()">
+          🎯 Zerar apenas pontuações
+          <span style="display:block;font-size:0.7rem;font-weight:400;opacity:0.8">Mantém grupos e participantes</span>
+        </button>
+        <button class="btn btn-full" style="background:rgba(239,68,68,0.9);color:white" onclick="resetAll()">
+          💣 Reset completo
+          <span style="display:block;font-size:0.7rem;font-weight:400;opacity:0.8">Apaga tudo: grupos, participantes e pontuações</span>
+        </button>
+        <button class="btn btn-ghost btn-full" onclick="hideResetModal()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toast-container"></div>
+
+  <script>
+    let adminPassword = '';
+    let groups = [];
+    let currentAIRanking = null;
+    let currentAIChallenge = null;
+
+    async function doLogin() {
+      const pwd = document.getElementById('login-password').value;
+      if (!pwd) return;
+
+      try {
+        const res = await fetch('/api/auth/validate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-password': pwd },
+        });
+
+        if (!res.ok) {
+          document.getElementById('login-error').style.display = 'block';
+          return;
+        }
+
+        adminPassword = pwd;
+        document.getElementById('login-error').style.display = 'none';
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('admin-panel').style.display = 'grid';
+        await fetchGroups();
+        showSection('groups');
+      } catch {
+        document.getElementById('login-error').style.display = 'block';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('login-password').addEventListener('keydown', e => {
+        if (e.key === 'Enter') doLogin();
+      });
+    });
+
+    function doLogout() {
+      adminPassword = '';
+      document.getElementById('admin-panel').style.display = 'none';
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('login-password').value = '';
+    }
+
+    function showSection(name) {
+      ['groups','scores','ai','history'].forEach(s => {
+        document.getElementById(`section-${s}`).style.display = s === name ? 'block' : 'none';
+        document.getElementById(`nav-${s}`).classList.toggle('active', s === name);
+      });
+      if (name === 'scores') loadQuickRanking();
+      if (name === 'history') loadHistory();
+      if (name === 'ai') renderResponsesGrid();
+    }
+
+    async function api(method, path, body) {
+      const opts = {
+        method,
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+      };
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch(`/api${path}`, opts);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro desconhecido');
+      return data;
+    }
+
+    async function fetchGroups() {
+      try {
+        const res = await fetch('/api/groups');
+        if (!res.ok) return;
+        groups = await res.json();
+        renderGroupsList();
+        populateGroupSelects();
+      } catch { /* ignora */ }
+    }
+
+    function renderGroupsList() {
+      const container = document.getElementById('groups-list');
+      if (groups.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-secondary);font-size:0.875rem">Nenhum grupo cadastrado ainda.</p>';
+        return;
+      }
+      container.innerHTML = groups.map(g => `
+        <div class="group-item">
+          <div class="group-color-dot" style="background:${escHtml(g.color)}"></div>
+          <div class="group-item-name">
+            <div>${escHtml(g.name)}</div>
+            <div style="font-size:0.72rem;color:var(--text-secondary)">${g.participant_count} participante(s)</div>
+          </div>
+          <div class="group-item-score">${g.total_points} pts</div>
+          <button class="btn btn-danger btn-sm" onclick="deleteGroup('${g.id}', '${escHtml(g.name)}')">🗑</button>
+        </div>
+      `).join('');
+    }
+
+    function populateGroupSelects() {
+      ['participant-group-select','score-group-select','history-group-filter'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const isHistory = id === 'history-group-filter';
+        const current = el.value;
+        el.innerHTML = `<option value="">${isHistory ? 'Todos os grupos' : 'Selecione um grupo...'}</option>` +
+          groups.map(g => `<option value="${g.id}" ${g.id === current ? 'selected' : ''}>${escHtml(g.name)}</option>`).join('');
+      });
+    }
+
+    async function createGroup() {
+      const name = document.getElementById('new-group-name').value.trim();
+      const color = document.getElementById('new-group-color').value;
+      if (!name) return showToast('Informe o nome do grupo', 'error');
+      try {
+        await api('POST', '/groups', { name, color });
+        document.getElementById('new-group-name').value = '';
+        await fetchGroups();
+        showToast(`Grupo "${name}" criado!`, 'success');
+      } catch (e) { showToast(e.message, 'error'); }
+    }
+
+    async function deleteGroup(id, name) {
+      if (!confirm(`Remover o grupo "${name}"? Isso apagará todos os participantes e pontuações.`)) return;
+      try {
+        await api('DELETE', `/groups/${id}`);
+        await fetchGroups();
+        showToast('Grupo removido.', 'success');
+      } catch (e) { showToast(e.message, 'error'); }
+    }
+
+    async function addParticipant() {
+      const groupId = document.getElementById('participant-group-select').value;
+      const name = document.getElementById('new-participant-name').value.trim();
+      if (!groupId) return showToast('Selecione um grupo', 'error');
+      if (!name) return showToast('Informe o nome do participante', 'error');
+      try {
+        await api('POST', `/groups/${groupId}/participants`, { name });
+        document.getElementById('new-participant-name').value = '';
+        await fetchGroups();
+        showToast(`"${name}" adicionado!`, 'success');
+      } catch (e) { showToast(e.message, 'error'); }
+    }
+
+    async function addManualScore() {
+      const groupId = document.getElementById('score-group-select').value;
+      const points = document.getElementById('score-points').value;
+      const reason = document.getElementById('score-reason').value.trim();
+      const createdBy = document.getElementById('score-by').value.trim();
+      if (!groupId) return showToast('Selecione um grupo', 'error');
+      if (!points) return showToast('Informe os pontos', 'error');
+      try {
+        await api('POST', '/scores/manual', { groupId, points: parseInt(points), reason, createdBy });
+        document.getElementById('score-points').value = '';
+        document.getElementById('score-reason').value = '';
+        await fetchGroups();
+        await loadQuickRanking();
+        showToast(`${parseInt(points) >= 0 ? '+' : ''}${points} pontos adicionados!`, 'success');
+      } catch (e) { showToast(e.message, 'error'); }
+    }
+
+    async function loadQuickRanking() {
+      const res = await fetch('/api/groups');
+      const data = await res.json();
+      const container = document.getElementById('quick-ranking');
+      if (data.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-secondary);font-size:0.875rem">Nenhum grupo ainda.</p>';
+        return;
+      }
+      container.innerHTML = data.map(g => `
+        <div class="ranking-item" style="margin-bottom:0.5rem;padding:0.75rem 1rem">
+          <div class="rank-position" style="font-size:1rem;min-width:2rem">${g.position}º</div>
+          <div class="rank-color-bar" style="background:${escHtml(g.color)};height:30px"></div>
+          <div class="rank-info"><div class="rank-name">${escHtml(g.name)}</div></div>
+          <div class="rank-score" style="font-size:1.25rem">${g.total_points}</div>
+        </div>
+      `).join('');
+    }
+
+    // ── IA: GRID DE RESPOSTAS ────────────────────────────────────
+    function renderResponsesGrid() {
+      const grid = document.getElementById('ai-responses-grid');
+      if (!groups.length) {
+        grid.innerHTML = '<p style="color:var(--text-secondary);font-size:0.875rem">Nenhum grupo cadastrado.</p>';
+        return;
+      }
+      grid.innerHTML = groups.map(g => `
+        <div style="display:grid;grid-template-columns:130px 1fr;gap:0.75rem;align-items:start">
+          <div style="padding-top:0.4rem">
+            <div style="display:flex;align-items:center;gap:0.4rem">
+              <span style="width:10px;height:10px;border-radius:50%;background:${escHtml(g.color)};flex-shrink:0;display:inline-block"></span>
+              <span style="font-size:0.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(g.name)}</span>
+            </div>
+          </div>
+          <textarea id="resp-${g.id}"
+            placeholder="Resposta da ${escHtml(g.name)}..."
+            style="min-height:56px;resize:vertical;font-size:0.82rem"></textarea>
+        </div>
+      `).join('');
+    }
+
+    function clearAllResponses() {
+      groups.forEach(g => {
+        const el = document.getElementById(`resp-${g.id}`);
+        if (el) el.value = '';
+      });
+      document.getElementById('ai-challenge').value = '';
+    }
+
+    // ── IA: ANALISAR E RANKEAR ───────────────────────────────────
+    async function rankWithAI() {
+      const challenge = document.getElementById('ai-challenge').value.trim();
+      if (!challenge) return showToast('Descreva o desafio / pergunta', 'error');
+
+      const responses = groups.map(g => ({
+        groupId: g.id,
+        groupName: g.name,
+        response: document.getElementById(`resp-${g.id}`)?.value?.trim() || '',
+      }));
+
+      const withResponse = responses.filter(r => r.response);
+      if (!withResponse.length) return showToast('Preencha ao menos uma resposta', 'error');
+
+      const btn = document.getElementById('ai-rank-btn');
+      btn.disabled = true;
+      btn.textContent = '⏳ IA rankeando... (pode levar alguns segundos)';
+
+      try {
+        const result = await api('POST', '/scores/ai-rank-all', { challenge, responses });
+        currentAIRanking = result.ranking;
+        currentAIChallenge = challenge;
+        showAIRankingResult(result);
+      } catch (e) {
+        showToast('Erro: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🤖 Analisar e Rankear com IA';
+      }
+    }
+
+    function showAIRankingResult(result) {
+      // Síntese geral
+      document.getElementById('ai-summary').textContent = result.summary || '';
+
+      // Três visões
+      document.getElementById('ai-visao-gates').textContent = result.visaoGates || '—';
+      document.getElementById('ai-visao-bezos').textContent = result.visaoBezos || '—';
+      document.getElementById('ai-visao-musk').textContent = result.visaoMusk || '—';
+
+      // Orientação estratégica
+      const sintese = result.sinteseFinal || '';
+      const sinteseWrapper = document.getElementById('ai-sintese-wrapper');
+      if (sintese) {
+        document.getElementById('ai-sintese-final').textContent = sintese;
+        sinteseWrapper.style.display = 'block';
+      } else {
+        sinteseWrapper.style.display = 'none';
+      }
+
+      // Tabela de ranking
+      const medals = ['🥇','🥈','🥉'];
+      const tbody = document.getElementById('ai-ranking-table');
+      tbody.innerHTML = result.ranking.map((item, idx) => {
+        const medal = item.rank <= 3 ? medals[item.rank - 1] : '';
+        const pts = Number(item.points) || 0;
+        const ptsColor = pts > 0 ? '#6EE7B7' : 'var(--text-secondary)';
+        const rowBg = item.rank === 1 ? 'rgba(251,191,36,0.05)' : item.rank <= 3 ? 'rgba(110,231,183,0.04)' : '';
+        return `
+          <tr style="border-bottom:1px solid var(--border);background:${rowBg}">
+            <td style="padding:0.5rem;font-weight:700;font-size:0.95rem">${medal || item.rank + 'º'}</td>
+            <td style="padding:0.5rem;font-weight:600">${escHtml(item.groupName)}</td>
+            <td style="padding:0.5rem;text-align:center">
+              <input type="number" value="${pts}" min="0" max="10"
+                id="ai-pts-${idx}"
+                style="width:52px;text-align:center;font-weight:700;color:${ptsColor};padding:0.2rem 0.3rem;font-size:0.9rem" />
+            </td>
+            <td style="padding:0.5rem;color:var(--text-secondary);font-size:0.78rem;line-height:1.5">${escHtml(item.justification)}</td>
+          </tr>`;
+      }).join('');
+
+      document.getElementById('ai-ranking-result').style.display = 'block';
+      document.getElementById('ai-ranking-result').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // ── IA: CONFIRMAR TODOS ──────────────────────────────────────
+    async function confirmAllScores() {
+      if (!currentAIRanking) return;
+
+      // Lê pontuações pelos índices — 100% confiável independente de groupId
+      const ranking = currentAIRanking.map((item, idx) => {
+        const el = document.getElementById(`ai-pts-${idx}`);
+        const pts = el ? Number(el.value) : Number(item.points);
+        return { ...item, points: isNaN(pts) ? 0 : pts };
+      });
+
+      try {
+        const res = await api('POST', '/scores/ai-confirm-all', {
+          challenge: currentAIChallenge,
+          ranking,
+        });
+        showToast(`✅ ${res.saved} pontuações salvas!`, 'success');
+        resetAIRanking();
+        await fetchGroups();
+      } catch (e) { showToast(e.message, 'error'); }
+    }
+
+    function resetAIRanking() {
+      document.getElementById('ai-ranking-result').style.display = 'none';
+      document.getElementById('ai-challenge').value = '';
+      groups.forEach(g => {
+        const el = document.getElementById(`resp-${g.id}`);
+        if (el) el.value = '';
+      });
+      currentAIRanking = null;
+      currentAIChallenge = null;
+    }
+
+    async function loadHistory() {
+      const groupId = document.getElementById('history-group-filter').value;
+      const container = document.getElementById('history-list');
+      container.innerHTML = '<p style="color:var(--text-secondary);font-size:0.875rem">Carregando...</p>';
+      try {
+        let allScores = [];
+        if (groupId) {
+          const scores = await fetch(`/api/groups/${groupId}/scores`).then(r => r.json());
+          const group = groups.find(g => g.id === groupId);
+          allScores = scores.map(s => ({ ...s, groupName: group?.name }));
+        } else {
+          for (const group of groups) {
+            const scores = await fetch(`/api/groups/${group.id}/scores`).then(r => r.json());
+            allScores.push(...scores.map(s => ({ ...s, groupName: group.name })));
+          }
+          allScores.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        }
+        if (allScores.length === 0) {
+          container.innerHTML = '<p style="color:var(--text-secondary);font-size:0.875rem">Nenhuma pontuação registrada.</p>';
+          return;
+        }
+        container.innerHTML = allScores.map(s => `
+          <div class="score-item">
+            <span class="score-type-badge ${s.type === 'ai' ? 'badge-ai' : 'badge-manual'}">
+              ${s.type === 'ai' ? '🤖 IA' : '✍️ Manual'}
+            </span>
+            <div class="score-info">
+              <div style="font-weight:600;font-size:0.85rem">${escHtml(s.groupName || '—')}</div>
+              <div class="score-reason">${escHtml(s.reason || '—')}</div>
+              <div style="font-size:0.7rem;color:var(--text-secondary)">
+                ${new Date(s.created_at).toLocaleString('pt-BR')} · ${escHtml(s.created_by || '—')}
+              </div>
+            </div>
+            <div>
+              <div class="score-points ${s.points >= 0 ? 'positive' : 'negative'}">${s.points >= 0 ? '+' : ''}${s.points}</div>
+              <button class="btn btn-danger btn-sm" onclick="deleteScore('${s.id}')" style="margin-top:0.25rem;font-size:0.65rem;padding:0.2rem 0.5rem">🗑</button>
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {
+        container.innerHTML = `<p style="color:var(--danger)">Erro: ${escHtml(e.message)}</p>`;
+      }
+    }
+
+    async function deleteScore(id) {
+      if (!confirm('Remover esta pontuação?')) return;
+      try {
+        await api('DELETE', `/scores/${id}`);
+        await loadHistory();
+        await fetchGroups();
+        showToast('Pontuação removida.', 'success');
+      } catch (e) { showToast(e.message, 'error'); }
+    }
+
+    function showResetModal() {
+      document.getElementById('reset-modal').style.display = 'flex';
+    }
+
+    function hideResetModal() {
+      document.getElementById('reset-modal').style.display = 'none';
+    }
+
+    async function confirmResetScores() {
+      if (!confirm('Confirma: apagar TODAS as pontuações?\nOs grupos permanecem cadastrados.')) return;
+      try {
+        await api('DELETE', '/groups/reset/scores');
+        await fetchGroups();
+        showToast('Todas as pontuações foram zeradas.', 'success');
+      } catch (e) { showToast(e.message, 'error'); }
+    }
+
+    async function resetScores() {
+      if (!confirm('Confirma: apagar TODAS as pontuações?')) return;
+      try {
+        await api('DELETE', '/groups/reset/scores');
+        hideResetModal();
+        await fetchGroups();
+        showToast('Todas as pontuações foram zeradas.', 'success');
+      } catch (e) { showToast(e.message, 'error'); }
+    }
+
+    async function resetAll() {
+      if (!confirm('ATENÇÃO: isso apagará TUDO (grupos, participantes e pontuações). Confirma?')) return;
+      try {
+        await api('DELETE', '/groups/reset/all');
+        hideResetModal();
+        await fetchGroups();
+        showSection('groups');
+        showToast('Sistema resetado com sucesso.', 'success');
+      } catch (e) { showToast(e.message, 'error'); }
+    }
+
+    function escHtml(str) {
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+      toast.innerHTML = `<span>${icon}</span> ${message}`;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 4000);
+    }
+  </script>
+</body>
+</html>
