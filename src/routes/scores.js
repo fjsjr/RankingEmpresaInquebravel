@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { supabaseAdmin } from '../config/supabase.js';
 import { requireAdmin } from '../middleware/auth.js';
-import { rankAllGroups, analyzeActivity } from '../services/ai-analyzer.js';
+import { rankAllGroups, rankCinGroups, analyzeActivity } from '../services/ai-analyzer.js';
 
 const router = Router();
 
@@ -87,6 +87,33 @@ router.post('/ai-confirm-all', requireAdmin, async (req, res) => {
     if (error) return res.status(500).json({ error: error.message });
 
     res.status(201).json({ success: true, saved: rows.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/scores/cin-rank-all — IA analisa CINs (PDFs) de todos os grupos
+router.post('/cin-rank-all', requireAdmin, async (req, res) => {
+  try {
+    const { context, responses } = req.body;
+
+    if (!Array.isArray(responses) || responses.length === 0) {
+      return res.status(400).json({ error: 'responses deve ser um array com os grupos e seus PDFs' });
+    }
+
+    const withPdf = responses.filter(r => r.pdfData);
+    if (!withPdf.length) {
+      return res.status(400).json({ error: 'Nenhum grupo enviou PDF do CIN' });
+    }
+
+    let result;
+    try {
+      result = await rankCinGroups({ context: context?.trim() || '', responses });
+    } catch (aiErr) {
+      return res.status(502).json({ error: `Falha na análise da IA: ${aiErr.message}` });
+    }
+
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

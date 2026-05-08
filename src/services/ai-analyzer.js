@@ -2,16 +2,14 @@ import OpenAI from 'openai';
 import pdfParse from 'pdf-parse';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const ASSISTANT_ID = process.env.OPENAI_ASSISTANT_ID;
 
-// ─── EXTRAÇÃO DE TEXTO DO PDF (CIN) ──────────────────────────────────────────
+// ─── EXTRAÇÃO DE TEXTO DO PDF ─────────────────────────────────────────────────
 async function extractPdfText(base64Data) {
   try {
     const raw = base64Data.replace(/^data:application\/pdf;base64,/, '');
     const buffer = Buffer.from(raw, 'base64');
     const data = await pdfParse(buffer);
-    // Limita para não explodir tokens (~4000 chars ≈ 1000 tokens)
-    return data.text.trim().slice(0, 4000);
+    return data.text.trim().slice(0, 5000); // ~1250 tokens por grupo
   } catch (err) {
     console.error('[PDF extract error]', err.message);
     return null;
@@ -85,41 +83,40 @@ Você é um conselheiro de avaliação que combina três perspectivas complement
    - Penaliza formalismo vazio, burocracia e respostas copiadas de manual
    - Premia originalidade arriscada com execução veloz e coragem de simplificar
    - Valoriza quem desafia o status quo com clareza e ousadia
-
-REGRAS DE AVALIAÇÃO — INEGOCIÁVEIS:
-- Classificação do 1º ao 10º lugar, SEM EMPATES
-- Pontuação fixa: 1º=10pts, 2º=9pts, 3º=8pts, 4º=7pts, 5º=6pts, 6º=5pts, 7º=4pts, 8º=3pts, 9º=2pts, 10º=1pt
-- 11º em diante: 0 pontos
-- Desempate (nesta ordem): impacto no cliente → viabilidade de execução → escalabilidade
-- NÃO inflar notas por compaixão
-- NÃO suavizar a verdade
-- NÃO atribuir a mesma posição a dois avaliados
-- Tratar cada avaliação como uma decisão de alto impacto sobre quem merece liderar
 `;
 
-// ─── RANKING DE TODOS OS GRUPOS ───────────────────────────────────────────────
+// ─── HELPERS COMPARTILHADOS ───────────────────────────────────────────────────
+function buildRankingResult(result, responses, nameToId) {
+  const rankedNames = new Set(result.ranking.map(r => r.groupName));
+  responses
+    .filter(r => !rankedNames.has(r.groupName))
+    .forEach(r => {
+      result.ranking.push({ groupName: r.groupName, points: 0, justification: 'Sem entrega registrada.' });
+    });
+
+  const withPts = result.ranking.map(item => ({
+    ...item,
+    groupId: nameToId[item.groupName] || null,
+    points: Math.min(10, Math.max(0, parseInt(item.points) || 0)),
+  }));
+
+  withPts.sort((a, b) => {
+    const aEmpty = a.justification === 'Sem entrega registrada.';
+    const bEmpty = b.justification === 'Sem entrega registrada.';
+    if (aEmpty !== bEmpty) return aEmpty ? 1 : -1;
+    return b.points - a.points;
+  });
+
+  return withPts.map((item, idx) => ({ ...item, rank: idx + 1 }));
+}
+
+// ─── EXERCÍCIO 1: RANKING POR RESPOSTA TEXTUAL ────────────────────────────────
 export async function rankAllGroups({ challenge, responses }) {
   const valid = responses.filter(r => r.response?.trim());
 
-  // Extrai texto dos PDFs CIN em paralelo
-  const cinTexts = new Map();
-  await Promise.all(
-    valid
-      .filter(r => r.pdfData)
-      .map(async r => {
-        const text = await extractPdfText(r.pdfData);
-        if (text) cinTexts.set(r.groupName, text);
-      })
-  );
-
-  const groupsText = valid.map((r, i) => {
-    const cinNote = cinTexts.has(r.groupName)
-      ? `\nRelatório CIN:\n${cinTexts.get(r.groupName)}`
-      : '';
-    return `Grupo ${i + 1}: ${r.groupName}\nResposta: ${r.response.trim()}${cinNote}`;
-  }).join('\n\n---\n\n');
-
-  const images = []; // mantido para compatibilidade futura
+  const groupsText = valid
+    .map((r, i) => `Grupo ${i + 1}: ${r.groupName}\nResposta: ${r.response.trim()}`)
+    .join('\n\n---\n\n');
 
   const prompt = `Você é o AGENTE AVALIADOR TRINO do evento corporativo "Empresa Inquebrável".
 
@@ -171,9 +168,9 @@ REGRAS INEGOCIÁVEIS:
 - A nota reflete a QUALIDADE e o ALINHAMENTO À METODOLOGIA EI, não a posição no ranking
 - Múltiplos grupos podem ter a mesma nota se merecerem
 - NÃO infle notas por compaixão — se foi vago sem conteúdo EI, é 1–3; se foi muito ruim, é 0
-- Ordene o array "ranking" do maior para o menor "points" (desempate: impacto no cliente → viabilidade → escalabilidade)
+- Ordene o array "ranking" do maior para o menor "points"
 
-PASSO 5 — Retorne o JSON abaixo. O campo "justification" deve ser direto e rigoroso em 1-2 frases: diga exatamente por que recebeu aquela nota.
+PASSO 5 — Retorne o JSON abaixo. O campo "justification" deve ser direto e rigoroso em 1-2 frases.
 
 Retorne SOMENTE um JSON válido, sem markdown, neste formato exato:
 {
@@ -191,53 +188,19 @@ Retorne SOMENTE um JSON válido, sem markdown, neste formato exato:
   ]
 }
 
-CRÍTICO: inclua APENAS os ${valid.length} grupos que responderam. NÃO inclua grupos sem resposta. Ordene do maior para o menor "points". Todos os ${valid.length} grupos devem aparecer.${cinTexts.size > 0 ? `
+CRÍTICO: inclua APENAS os ${valid.length} grupos que responderam. NÃO inclua grupos sem resposta. Ordene do maior para o menor "points". Todos os ${valid.length} grupos devem aparecer.`;
 
-RELATÓRIOS CIN RECEBIDOS: ${cinTexts.size} grupo(s) enviaram o Relatório CIN (Centro de Inteligência de Negócio), incluído acima em "Relatório CIN:" de cada grupo. Ao avaliar esses grupos, analise o conteúdo do CIN: análise de concorrentes, SWOT, inteligência de mercado — e avalie se demonstram clareza estratégica, consciência competitiva e alinhamento com os Pilares EI (especialmente Pessoas, Produtos e Operações). O CIN é critério complementar à resposta textual.` : ''}`;
-
-  const raw = await callChat(prompt, images);
-
+  const raw = await callChat(prompt);
   let result;
   try {
     result = extractJSON(raw);
   } catch (e) {
-    console.error('[AI rankAllGroups] Raw inválido (primeiros 800 chars):\n', raw?.slice(0, 800));
+    console.error('[AI rankAllGroups] Raw inválido:\n', raw?.slice(0, 800));
     throw e;
   }
 
-  // Mapeia groupName → groupId
   const nameToId = {};
   responses.forEach(r => { nameToId[r.groupName] = r.groupId; });
-
-  // Adiciona grupos sem resposta ao final com 0 pts
-  const rankedNames = new Set(result.ranking.map(r => r.groupName));
-  responses
-    .filter(r => !rankedNames.has(r.groupName))
-    .forEach(r => {
-      result.ranking.push({
-        groupName: r.groupName,
-        points: 0,
-        justification: 'Sem resposta registrada.',
-      });
-    });
-
-  // Garante que points é número válido entre 0-10 e injeta groupId
-  const withPts = result.ranking.map(item => ({
-    ...item,
-    groupId: nameToId[item.groupName] || null,
-    points: Math.min(10, Math.max(0, parseInt(item.points) || 0)),
-  }));
-
-  // Ordena: maior pontuação primeiro, sem resposta sempre ao final
-  withPts.sort((a, b) => {
-    const aNoResp = a.justification === 'Sem resposta registrada.';
-    const bNoResp = b.justification === 'Sem resposta registrada.';
-    if (aNoResp !== bNoResp) return aNoResp ? 1 : -1;
-    return b.points - a.points;
-  });
-
-  // Injeta rank sequencial
-  result.ranking = withPts.map((item, idx) => ({ ...item, rank: idx + 1 }));
 
   return {
     summary: result.summary || '',
@@ -245,7 +208,116 @@ RELATÓRIOS CIN RECEBIDOS: ${cinTexts.size} grupo(s) enviaram o Relatório CIN (
     visaoBezos: result.visaoBezos || '',
     visaoMusk: result.visaoMusk || '',
     sinteseFinal: result.sinteseFinal || '',
-    ranking: result.ranking,
+    ranking: buildRankingResult(result, responses, nameToId),
+  };
+}
+
+// ─── EXERCÍCIO 2: RANKING POR RELATÓRIO CIN (PDF) ────────────────────────────
+export async function rankCinGroups({ context, responses }) {
+  // Extrai texto dos PDFs em paralelo
+  const withText = await Promise.all(
+    responses.map(async r => ({
+      ...r,
+      cinText: r.pdfData ? await extractPdfText(r.pdfData) : null,
+    }))
+  );
+
+  const valid = withText.filter(r => r.cinText);
+
+  if (!valid.length) throw new Error('Nenhum grupo enviou PDF do CIN.');
+
+  const groupsText = valid
+    .map((r, i) => `Grupo ${i + 1}: ${r.groupName}\n\n${r.cinText}`)
+    .join('\n\n════════════════════════════════════\n\n');
+
+  const contextNote = context?.trim()
+    ? `FOCO DA AVALIAÇÃO SOLICITADO PELO FACILITADOR:\n${context.trim()}\n\n---\n\n`
+    : '';
+
+  const prompt = `Você é o AGENTE AVALIADOR TRINO do evento corporativo "Empresa Inquebrável".
+
+${AGENTE_TRINO}
+
+---
+
+${EI_METHODOLOGY}
+
+---
+
+EXERCÍCIO: ANÁLISE DO RELATÓRIO CIN (Centro de Inteligência de Negócio)
+
+${contextNote}Cada grupo abaixo enviou seu Relatório CIN contendo análise de concorrentes, SWOT e inteligência de mercado. Avalie a qualidade estratégica de cada documento.
+
+RELATÓRIOS CIN DOS GRUPOS (${valid.length} grupos com entrega):
+
+${groupsText}
+
+---
+
+CRITÉRIOS DE AVALIAÇÃO DO CIN:
+
+PASSO 1 — Leia cada relatório com atenção. Avalie as seguintes dimensões:
+  • ANÁLISE DE CONCORRENTES: Profundidade, precisão, identificação de ameaças reais
+  • SWOT: Completude (forças, fraquezas, oportunidades, ameaças), coerência interna, honestidade
+  • INTELIGÊNCIA DE MERCADO: Dados, tendências, posicionamento competitivo
+  • CLAREZA ESTRATÉGICA: O grupo sabe onde está e para onde vai?
+  • ALINHAMENTO EI: O relatório conecta a análise com os pilares do Método ALMA 8P?
+
+PASSO 2 — Aplique as TRÊS VISÕES:
+  • GATES: O diagnóstico é rigoroso? Há dados? Falhas estruturais identificadas?
+  • BEZOS: O foco no cliente e no longo prazo está presente? O grupo pensa além do óbvio?
+  • MUSK: O grupo questiona premissas do mercado? Há originalidade na análise?
+
+ESCALA DE NOTAS — USE COM RIGOR:
+  • 10 pts → CIN completo, honesto, estrategicamente profundo e alinhado ao EI. Concorrentes mapeados com clareza, SWOT coerente, inteligência de mercado aplicável.
+  • 7–9 pts → Bom CIN: cobre a maioria das dimensões com qualidade, pequenas lacunas.
+  • 4–6 pts → CIN parcial: superficial em ao menos 2 dimensões, SWOT genérico ou análise de concorrentes rasa.
+  • 1–3 pts → CIN muito fraco: diagnóstico vago, sem dados, SWOT incoerente ou irrelevante.
+  • 0 pts → Sem entrega ou conteúdo completamente fora do escopo.
+
+REGRAS INEGOCIÁVEIS:
+- A nota reflete a QUALIDADE DO DOCUMENTO, não o tamanho
+- NÃO infle notas — um CIN ruim é ruim, mesmo que longo
+- Múltiplos grupos podem ter a mesma nota se merecerem
+- Ordene o array "ranking" do maior para o menor "points"
+
+Retorne SOMENTE um JSON válido, sem markdown, neste formato exato:
+{
+  "summary": "<o que diferenciou os melhores CINs dos piores — 2 frases diretas>",
+  "visaoGates": "<diagnóstico geral: quais grupos têm rigor analítico real vs. análise decorativa>",
+  "visaoBezos": "<quem demonstrou foco no cliente e visão de longo prazo no CIN>",
+  "visaoMusk": "<quem questionou premissas e quem reproduziu análises genéricas de manual>",
+  "sinteseFinal": "<recomendação estratégica: o que os grupos devem melhorar no CIN>",
+  "ranking": [
+    {
+      "groupName": "<nome exato do grupo>",
+      "points": <0 a 10>,
+      "justification": "<1-2 frases diretas: por que recebeu essa nota no CIN>"
+    }
+  ]
+}
+
+CRÍTICO: inclua APENAS os ${valid.length} grupos que entregaram o CIN. Ordene do maior para o menor "points".`;
+
+  const raw = await callChat(prompt);
+  let result;
+  try {
+    result = extractJSON(raw);
+  } catch (e) {
+    console.error('[AI rankCinGroups] Raw inválido:\n', raw?.slice(0, 800));
+    throw e;
+  }
+
+  const nameToId = {};
+  responses.forEach(r => { nameToId[r.groupName] = r.groupId; });
+
+  return {
+    summary: result.summary || '',
+    visaoGates: result.visaoGates || '',
+    visaoBezos: result.visaoBezos || '',
+    visaoMusk: result.visaoMusk || '',
+    sinteseFinal: result.sinteseFinal || '',
+    ranking: buildRankingResult(result, responses, nameToId),
   };
 }
 
@@ -288,68 +360,35 @@ Retorne JSON puro sem markdown:
 }`;
 
   const raw = await callChat(prompt);
-
   let analysis;
   try {
     analysis = extractJSON(raw);
   } catch (e) {
-    console.error('[AI analyzeActivity] Raw inválido (primeiros 800 chars):\n', raw?.slice(0, 800));
+    console.error('[AI analyzeActivity] Raw inválido:\n', raw?.slice(0, 800));
     throw e;
   }
   return buildResult(analysis);
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
-async function callAssistant(content) {
-  const thread = await openai.beta.threads.create();
-  await openai.beta.threads.messages.create(thread.id, { role: 'user', content });
-  const run = await openai.beta.threads.runs.createAndPoll(thread.id, {
-    assistant_id: ASSISTANT_ID,
-    response_format: { type: 'json_object' },
-  });
-  if (run.status !== 'completed') throw new Error(`Assistente retornou status: ${run.status}`);
-  const msgs = await openai.beta.threads.messages.list(thread.id);
-  const last = msgs.data.find(m => m.role === 'assistant');
-  return last?.content?.[0]?.text?.value || '{}';
-}
-
 function extractJSON(raw) {
-  // 1. Tenta parse direto
   try { return JSON.parse(raw); } catch {}
-
-  // 2. Remove markdown code blocks e tenta novamente
   const stripped = raw.replace(/```json?\s*/gi, '').replace(/```/g, '').trim();
   try { return JSON.parse(stripped); } catch {}
-
-  // 3. Extrai o maior bloco JSON da resposta
   const match = raw.match(/\{[\s\S]*\}/);
-  if (match) {
-    try { return JSON.parse(match[0]); } catch {}
-  }
-
+  if (match) { try { return JSON.parse(match[0]); } catch {} }
   throw new Error('IA retornou resposta em formato inválido. Tente novamente.');
 }
 
-async function callChat(content, images = []) {
-  // Monta conteúdo da mensagem do usuário — texto puro ou multimodal com imagens
-  const userContent = images.length > 0
-    ? [
-        { type: 'text', text: content },
-        ...images.flatMap(({ groupName, dataUrl }) => [
-          { type: 'text', text: `[Organograma do grupo: ${groupName}]` },
-          { type: 'image_url', image_url: { url: dataUrl, detail: 'high' } },
-        ]),
-      ]
-    : content;
-
+async function callChat(content) {
   const res = await openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [
       {
         role: 'system',
-        content: 'Você é o Agente Avaliador Trino do programa Empresa Inquebrável — combinando rigor analítico (Gates), obsessão pelo cliente (Bezos) e primeiros princípios (Musk). Avalie com frieza, justiça e coragem. Responda SEMPRE com JSON puro e válido, sem markdown, sem texto antes ou depois, sem empates no ranking.',
+        content: 'Você é o Agente Avaliador Trino do programa Empresa Inquebrável — combinando rigor analítico (Gates), obsessão pelo cliente (Bezos) e primeiros princípios (Musk). Avalie com frieza, justiça e coragem. Responda SEMPRE com JSON puro e válido, sem markdown, sem texto antes ou depois.',
       },
-      { role: 'user', content: userContent },
+      { role: 'user', content },
     ],
     response_format: { type: 'json_object' },
     max_tokens: 4096,
