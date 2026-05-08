@@ -22,6 +22,10 @@ if (process.env.NODE_ENV !== 'production') {
 }
 app.use(express.json({ limit: '50mb' }));
 
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end();
+});
+
 app.use(express.static(join(__dirname, '..', 'public')));
 
 app.use('/api/auth', authRouter);

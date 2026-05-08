@@ -2,7 +2,19 @@ import OpenAI from 'openai';
 import { PDFParse } from 'pdf-parse';
 
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+let openai = null;
+
+function getOpenAiClient() {
+  if (openai) return openai;
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error('Configuração ausente: defina OPENAI_API_KEY nas variáveis de ambiente da Vercel');
+  }
+
+  openai = new OpenAI({ apiKey });
+  return openai;
+}
 
 // ─── EXTRAÇÃO DE TEXTO DO PDF ─────────────────────────────────────────────────
 async function extractPdfText(base64Data) {
@@ -390,7 +402,8 @@ function extractJSON(raw) {
 }
 
 async function callChat(content) {
-  const res = await openai.chat.completions.create({
+  const client = getOpenAiClient();
+  const res = await client.chat.completions.create({
     model: 'gpt-4o',
     messages: [
       {
