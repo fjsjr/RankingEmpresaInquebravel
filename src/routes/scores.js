@@ -1,9 +1,16 @@
 import { Router } from 'express';
 import { supabaseAdmin } from '../config/supabase.js';
 import { requireAdmin } from '../middleware/auth.js';
-import { rankAllGroups, rankCinGroups, analyzeActivity } from '../services/ai-analyzer.js';
 
 const router = Router();
+let aiAnalyzerModulePromise = null;
+
+async function getAiAnalyzer() {
+  if (!aiAnalyzerModulePromise) {
+    aiAnalyzerModulePromise = import('../services/ai-analyzer.js');
+  }
+  return aiAnalyzerModulePromise;
+}
 
 // POST /api/scores/manual
 router.post('/manual', requireAdmin, async (req, res) => {
@@ -52,6 +59,7 @@ router.post('/ai-rank-all', requireAdmin, async (req, res) => {
 
     let result;
     try {
+      const { rankAllGroups } = await getAiAnalyzer();
       result = await rankAllGroups({ challenge: challenge.trim(), responses });
     } catch (aiErr) {
       return res.status(502).json({ error: `Falha na análise da IA: ${aiErr.message}` });
@@ -108,6 +116,7 @@ router.post('/cin-rank-all', requireAdmin, async (req, res) => {
 
     let result;
     try {
+      const { rankCinGroups } = await getAiAnalyzer();
       result = await rankCinGroups({ context: context?.trim() || '', responses });
     } catch (aiErr) {
       return res.status(502).json({ error: `Falha na análise da IA: ${aiErr.message}` });
@@ -140,6 +149,7 @@ router.post('/ai-analyze', requireAdmin, async (req, res) => {
 
     let analysis;
     try {
+      const { analyzeActivity } = await getAiAnalyzer();
       analysis = await analyzeActivity({
         groupName: group.name,
         description: description.trim(),
