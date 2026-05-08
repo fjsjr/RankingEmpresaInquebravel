@@ -20,7 +20,7 @@ app.use(cors());
 if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 }
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }));
 
 app.use(express.static(join(__dirname, '..', 'public')));
 
@@ -37,14 +37,19 @@ app.get('/admin', (req, res) => {
   res.sendFile(join(__dirname, '..', 'public', 'admin.html'));
 });
 
-// Bug 5 fix: global error handler para capturar erros async não tratados
 app.use((err, req, res, _next) => {
   console.error('[ERROR]', err.message);
   res.status(500).json({ error: err.message || 'Erro interno do servidor' });
 });
 
-app.listen(PORT, () => {
-  console.log(`\n🏆 Ranking Empresa Inquebrável rodando em http://localhost:${PORT}`);
-  console.log(`📊 Ranking público: http://localhost:${PORT}`);
-  console.log(`⚙️  Painel admin:   http://localhost:${PORT}/admin\n`);
-});
+// Export para Vercel serverless — @vercel/node usa o app como handler
+export default app;
+
+// Escuta apenas fora do ambiente Vercel (desenvolvimento local)
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`\n🏆 Ranking Empresa Inquebrável rodando em http://localhost:${PORT}`);
+    console.log(`📊 Ranking público: http://localhost:${PORT}`);
+    console.log(`⚙️  Painel admin:   http://localhost:${PORT}/admin\n`);
+  });
+}

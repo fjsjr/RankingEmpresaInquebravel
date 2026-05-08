@@ -449,6 +449,8 @@
     }
 
     // ── IA: GRID DE RESPOSTAS ────────────────────────────────────
+    const groupImages = new Map(); // groupId → base64 dataURL
+
     function renderResponsesGrid() {
       const grid = document.getElementById('ai-responses-grid');
       if (!groups.length) {
@@ -463,17 +465,56 @@
               <span style="font-size:0.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(g.name)}</span>
             </div>
           </div>
-          <textarea id="resp-${g.id}"
-            placeholder="Resposta da ${escHtml(g.name)}..."
-            style="min-height:56px;resize:vertical;font-size:0.82rem"></textarea>
+          <div style="display:flex;flex-direction:column;gap:0.4rem">
+            <textarea id="resp-${g.id}"
+              placeholder="Resposta da ${escHtml(g.name)}..."
+              style="min-height:56px;resize:vertical;font-size:0.82rem"></textarea>
+            <div style="display:flex;align-items:center;gap:0.5rem">
+              <label style="cursor:pointer;display:flex;align-items:center;gap:0.3rem;font-size:0.72rem;color:var(--text-secondary);padding:0.2rem 0.5rem;border:1px dashed rgba(255,255,255,0.15);border-radius:6px;transition:border-color 0.2s" onmouseover="this.style.borderColor='#00DCFF'" onmouseout="this.style.borderColor='rgba(255,255,255,0.15)'">
+                📎 Organograma
+                <input type="file" accept="image/*" style="display:none" onchange="handleOrgImage('${g.id}', this)" />
+              </label>
+              <div id="org-preview-${g.id}" style="display:none;align-items:center;gap:0.4rem;font-size:0.72rem;color:#6EE7B7">
+                <img id="org-thumb-${g.id}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;border:1px solid rgba(110,231,183,0.3)" />
+                <span id="org-name-${g.id}"></span>
+                <button onclick="removeOrgImage('${g.id}')" style="background:none;border:none;color:#F87171;cursor:pointer;font-size:0.75rem;padding:0">✕</button>
+              </div>
+            </div>
+          </div>
         </div>
       `).join('');
+    }
+
+    function handleOrgImage(groupId, input) {
+      const file = input.files[0];
+      if (!file) return;
+      if (file.size > 10 * 1024 * 1024) {
+        showToast('Imagem muito grande (máx 10MB)', 'error');
+        input.value = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = e => {
+        groupImages.set(groupId, e.target.result);
+        const preview = document.getElementById(`org-preview-${groupId}`);
+        document.getElementById(`org-thumb-${groupId}`).src = e.target.result;
+        document.getElementById(`org-name-${groupId}`).textContent = file.name.slice(0, 20);
+        preview.style.display = 'flex';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removeOrgImage(groupId) {
+      groupImages.delete(groupId);
+      const preview = document.getElementById(`org-preview-${groupId}`);
+      if (preview) preview.style.display = 'none';
     }
 
     function clearAllResponses() {
       groups.forEach(g => {
         const el = document.getElementById(`resp-${g.id}`);
         if (el) el.value = '';
+        removeOrgImage(g.id);
       });
       document.getElementById('ai-challenge').value = '';
     }
@@ -487,6 +528,7 @@
         groupId: g.id,
         groupName: g.name,
         response: document.getElementById(`resp-${g.id}`)?.value?.trim() || '',
+        imageData: groupImages.get(g.id) || null,
       }));
 
       const withResponse = responses.filter(r => r.response);
@@ -581,7 +623,9 @@
       groups.forEach(g => {
         const el = document.getElementById(`resp-${g.id}`);
         if (el) el.value = '';
+        removeOrgImage(g.id);
       });
+      groupImages.clear();
       currentAIRanking = null;
       currentAIChallenge = null;
     }

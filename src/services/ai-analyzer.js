@@ -86,9 +86,15 @@ REGRAS DE AVALIAÇÃO — INEGOCIÁVEIS:
 export async function rankAllGroups({ challenge, responses }) {
   const valid = responses.filter(r => r.response?.trim());
 
-  const groupsText = valid.map((r, i) =>
-    `Grupo ${i + 1}: ${r.groupName}\nResposta: ${r.response.trim()}`
-  ).join('\n\n---\n\n');
+  const groupsText = valid.map((r, i) => {
+    const orgNote = r.imageData ? ' [enviou organograma para análise visual]' : '';
+    return `Grupo ${i + 1}: ${r.groupName}${orgNote}\nResposta: ${r.response.trim()}`;
+  }).join('\n\n---\n\n');
+
+  // Coleta imagens dos grupos que enviaram organograma
+  const images = valid
+    .filter(r => r.imageData)
+    .map(r => ({ groupName: r.groupName, dataUrl: r.imageData }));
 
   const prompt = `Você é o AGENTE AVALIADOR TRINO do evento corporativo "Empresa Inquebrável".
 
@@ -160,9 +166,11 @@ Retorne SOMENTE um JSON válido, sem markdown, neste formato exato:
   ]
 }
 
-CRÍTICO: inclua APENAS os ${valid.length} grupos que responderam. NÃO inclua grupos sem resposta. Ordene do maior para o menor "points". Todos os ${valid.length} grupos devem aparecer.`;
+CRÍTICO: inclua APENAS os ${valid.length} grupos que responderam. NÃO inclua grupos sem resposta. Ordene do maior para o menor "points". Todos os ${valid.length} grupos devem aparecer.${images.length > 0 ? `
 
-  const raw = await callChat(prompt);
+ORGANOGRAMAS RECEBIDOS: ${images.length} grupo(s) enviaram organograma para avaliação visual. As imagens estão incluídas nesta mensagem. Ao avaliar esses grupos, analise também a estrutura organizacional apresentada: hierarquia, clareza de papéis, delegação e alinhamento com o Passo 3 (ORGANOGRAMA) do Método ALMA 8P. O organograma é critério complementar à resposta textual.` : ''}`;
+
+  const raw = await callChat(prompt, images);
 
   let result;
   try {
@@ -297,7 +305,18 @@ function extractJSON(raw) {
   throw new Error('IA retornou resposta em formato inválido. Tente novamente.');
 }
 
-async function callChat(content) {
+async function callChat(content, images = []) {
+  // Monta conteúdo da mensagem do usuário — texto puro ou multimodal com imagens
+  const userContent = images.length > 0
+    ? [
+        { type: 'text', text: content },
+        ...images.flatMap(({ groupName, dataUrl }) => [
+          { type: 'text', text: `[Organograma do grupo: ${groupName}]` },
+          { type: 'image_url', image_url: { url: dataUrl, detail: 'high' } },
+        ]),
+      ]
+    : content;
+
   const res = await openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [
@@ -305,9 +324,10 @@ async function callChat(content) {
         role: 'system',
         content: 'Você é o Agente Avaliador Trino do programa Empresa Inquebrável — combinando rigor analítico (Gates), obsessão pelo cliente (Bezos) e primeiros princípios (Musk). Avalie com frieza, justiça e coragem. Responda SEMPRE com JSON puro e válido, sem markdown, sem texto antes ou depois, sem empates no ranking.',
       },
-      { role: 'user', content },
+      { role: 'user', content: userContent },
     ],
     response_format: { type: 'json_object' },
+    max_tokens: 4096,
   });
   return res.choices[0].message.content;
 }
