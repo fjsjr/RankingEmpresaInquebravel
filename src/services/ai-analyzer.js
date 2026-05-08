@@ -1,7 +1,22 @@
 import OpenAI from 'openai';
+import pdfParse from 'pdf-parse';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const ASSISTANT_ID = process.env.OPENAI_ASSISTANT_ID;
+
+// ─── EXTRAÇÃO DE TEXTO DO PDF (CIN) ──────────────────────────────────────────
+async function extractPdfText(base64Data) {
+  try {
+    const raw = base64Data.replace(/^data:application\/pdf;base64,/, '');
+    const buffer = Buffer.from(raw, 'base64');
+    const data = await pdfParse(buffer);
+    // Limita para não explodir tokens (~4000 chars ≈ 1000 tokens)
+    return data.text.trim().slice(0, 4000);
+  } catch (err) {
+    console.error('[PDF extract error]', err.message);
+    return null;
+  }
+}
 
 // ─── METODOLOGIA EMPRESA INQUEBRÁVEL ─────────────────────────────────────────
 const EI_METHODOLOGY = `
@@ -86,15 +101,25 @@ REGRAS DE AVALIAÇÃO — INEGOCIÁVEIS:
 export async function rankAllGroups({ challenge, responses }) {
   const valid = responses.filter(r => r.response?.trim());
 
+  // Extrai texto dos PDFs CIN em paralelo
+  const cinTexts = new Map();
+  await Promise.all(
+    valid
+      .filter(r => r.pdfData)
+      .map(async r => {
+        const text = await extractPdfText(r.pdfData);
+        if (text) cinTexts.set(r.groupName, text);
+      })
+  );
+
   const groupsText = valid.map((r, i) => {
-    const orgNote = r.imageData ? ' [enviou organograma para análise visual]' : '';
-    return `Grupo ${i + 1}: ${r.groupName}${orgNote}\nResposta: ${r.response.trim()}`;
+    const cinNote = cinTexts.has(r.groupName)
+      ? `\nRelatório CIN:\n${cinTexts.get(r.groupName)}`
+      : '';
+    return `Grupo ${i + 1}: ${r.groupName}\nResposta: ${r.response.trim()}${cinNote}`;
   }).join('\n\n---\n\n');
 
-  // Coleta imagens dos grupos que enviaram organograma
-  const images = valid
-    .filter(r => r.imageData)
-    .map(r => ({ groupName: r.groupName, dataUrl: r.imageData }));
+  const images = []; // mantido para compatibilidade futura
 
   const prompt = `Você é o AGENTE AVALIADOR TRINO do evento corporativo "Empresa Inquebrável".
 
@@ -166,9 +191,9 @@ Retorne SOMENTE um JSON válido, sem markdown, neste formato exato:
   ]
 }
 
-CRÍTICO: inclua APENAS os ${valid.length} grupos que responderam. NÃO inclua grupos sem resposta. Ordene do maior para o menor "points". Todos os ${valid.length} grupos devem aparecer.${images.length > 0 ? `
+CRÍTICO: inclua APENAS os ${valid.length} grupos que responderam. NÃO inclua grupos sem resposta. Ordene do maior para o menor "points". Todos os ${valid.length} grupos devem aparecer.${cinTexts.size > 0 ? `
 
-ORGANOGRAMAS RECEBIDOS: ${images.length} grupo(s) enviaram organograma para avaliação visual. As imagens estão incluídas nesta mensagem. Ao avaliar esses grupos, analise também a estrutura organizacional apresentada: hierarquia, clareza de papéis, delegação e alinhamento com o Passo 3 (ORGANOGRAMA) do Método ALMA 8P. O organograma é critério complementar à resposta textual.` : ''}`;
+RELATÓRIOS CIN RECEBIDOS: ${cinTexts.size} grupo(s) enviaram o Relatório CIN (Centro de Inteligência de Negócio), incluído acima em "Relatório CIN:" de cada grupo. Ao avaliar esses grupos, analise o conteúdo do CIN: análise de concorrentes, SWOT, inteligência de mercado — e avalie se demonstram clareza estratégica, consciência competitiva e alinhamento com os Pilares EI (especialmente Pessoas, Produtos e Operações). O CIN é critério complementar à resposta textual.` : ''}`;
 
   const raw = await callChat(prompt, images);
 
