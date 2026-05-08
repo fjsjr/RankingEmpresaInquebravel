@@ -496,10 +496,30 @@
       opacity: 0.6;
     }
 
+    /* ── BOTÃO FINALIZAR ── */
+    .btn-finish {
+      display: block;
+      margin: 2rem auto 0.5rem;
+      padding: 0.85rem 2.5rem;
+      background: linear-gradient(135deg, #B8860B, #FFD700, #FFF176);
+      color: #000;
+      font-family: var(--font-display);
+      font-weight: 900;
+      font-size: 1rem;
+      letter-spacing: 0.05em;
+      border: none;
+      border-radius: 999px;
+      cursor: pointer;
+      box-shadow: 0 0 32px rgba(255,215,0,0.35), 0 4px 16px rgba(0,0,0,0.3);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn-finish:hover { transform: scale(1.05); box-shadow: 0 0 48px rgba(255,215,0,0.55); }
+    .btn-finish:active { transform: scale(0.97); }
+
     /* ── FOOTER ── */
     .footer {
       text-align: center;
-      margin-top: 2rem;
+      margin-top: 1rem;
       font-size: 0.72rem;
       color: var(--muted);
     }
@@ -570,6 +590,10 @@
 
   <div id="ranking-list"></div>
 
+  <button class="btn-finish" id="btn-finish" onclick="finalizarRanking()" style="display:none">
+    🏆 Finalizar Ranking
+  </button>
+
   <div class="footer">
     Atualizado em <span id="last-update">—</span>
   </div>
@@ -577,6 +601,8 @@
 </div>
 
 <div class="toast-container" id="toasts"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 
 <script type="module">
   import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
@@ -736,7 +762,45 @@
 
     prevPositions = newPositions;
     groups.forEach(g => { prevScores[g.id] = g.total_points; });
+
+    // Mostra botão Finalizar só quando há ranking com pontuação
+    const btnFinish = document.getElementById('btn-finish');
+    if (groups.length > 0 && groups[0].total_points > 0) {
+      btnFinish.style.display = 'block';
+    }
   }
+
+  // ─── FINALIZAR RANKING ────────────────────────────────
+  window.finalizarRanking = function () {
+    const card1 = document.querySelector('.podium-1');
+    const btn   = document.getElementById('btn-finish');
+
+    // Origem do confetti: cima do card do 1º lugar
+    let originX = 0.5, originY = 0.3;
+    if (card1) {
+      const r = card1.getBoundingClientRect();
+      originX = (r.left + r.width / 2) / window.innerWidth;
+      originY = (r.top + r.height / 4)  / window.innerHeight;
+    }
+
+    const colors = ['#FFD700','#FFF176','#00DCFF','#23C178','#ffffff','#B8860B'];
+
+    // Burst central no 1º
+    confetti({ particleCount: 180, spread: 90, origin: { x: originX, y: originY }, colors, scalar: 1.2, zIndex: 9999 });
+
+    // Chuva dos dois lados por 4s
+    const end = Date.now() + 4000;
+    (function frame() {
+      confetti({ particleCount: 6, angle: 60,  spread: 55, origin: { x: 0, y: 0.6 }, colors, zIndex: 9999 });
+      confetti({ particleCount: 6, angle: 120, spread: 55, origin: { x: 1, y: 0.6 }, colors, zIndex: 9999 });
+      if (Date.now() < end) requestAnimationFrame(frame);
+    })();
+
+    // Feedback visual no botão
+    btn.textContent = '🎉 Parabéns ao 1º lugar!';
+    btn.style.background = 'linear-gradient(135deg,#00DCFF,#23C178)';
+    btn.disabled = true;
+  };
 
   // ─── SHIELD SVG ───────────────────────────────────────
   function shieldSVG(pos, groupColor) {
