@@ -20,7 +20,7 @@ app.use(cors());
 if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 }
-app.use(express.json({ limit: '15mb' }));
+app.use(express.json({ limit: '50mb' }));
 
 app.use(express.static(join(__dirname, '..', 'public')));
 
