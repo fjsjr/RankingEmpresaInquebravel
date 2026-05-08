@@ -1,21 +1,18 @@
 import OpenAI from 'openai';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const pdfParse = require('pdf-parse');
+import { PDFParse } from 'pdf-parse';
+
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // ─── EXTRAÇÃO DE TEXTO DO PDF ─────────────────────────────────────────────────
 async function extractPdfText(base64Data) {
-  try {
-    const raw = base64Data.replace(/^data:application\/pdf;base64,/, '');
-    const buffer = Buffer.from(raw, 'base64');
-    const data = await pdfParse(buffer);
-    return data.text.trim().slice(0, 5000); // ~1250 tokens por grupo
-  } catch (err) {
-    console.error('[PDF extract error]', err.message);
-    return null;
-  }
+  const raw = base64Data.replace(/^data:.*;base64,/, '');
+  const buffer = Buffer.from(raw, 'base64');
+  const parser = new PDFParse({ data: buffer });
+  const result = await parser.getText();
+  const text = result?.text?.replace(/\s+/g, ' ').trim() || '';
+  if (!text) throw new Error('PDF sem texto extraível (pode ser imagem escaneada)');
+  return text.slice(0, 5000);
 }
 
 // ─── METODOLOGIA EMPRESA INQUEBRÁVEL ─────────────────────────────────────────
@@ -216,17 +213,27 @@ CRÍTICO: inclua APENAS os ${valid.length} grupos que responderam. NÃO inclua g
 
 // ─── EXERCÍCIO 2: RANKING POR RELATÓRIO CIN (PDF) ────────────────────────────
 export async function rankCinGroups({ context, responses }) {
-  // Extrai texto dos PDFs em paralelo
+  // Extrai texto dos PDFs em paralelo — erros individuais não bloqueiam os demais
   const withText = await Promise.all(
-    responses.map(async r => ({
-      ...r,
-      cinText: r.pdfData ? await extractPdfText(r.pdfData) : null,
-    }))
+    responses.map(async r => {
+      if (!r.pdfData) return { ...r, cinText: null, cinError: null };
+      try {
+        const cinText = await extractPdfText(r.pdfData);
+        return { ...r, cinText, cinError: null };
+      } catch (err) {
+        console.error(`[PDF extract] ${r.groupName}:`, err.message);
+        return { ...r, cinText: null, cinError: err.message };
+      }
+    })
   );
 
   const valid = withText.filter(r => r.cinText);
+  const failed = withText.filter(r => r.pdfData && r.cinError);
 
-  if (!valid.length) throw new Error('Nenhum grupo enviou PDF do CIN.');
+  if (!valid.length) {
+    const detail = failed.map(r => `${r.groupName}: ${r.cinError}`).join('; ');
+    throw new Error(`Falha ao ler os PDFs enviados. ${detail || 'Verifique se os arquivos são PDFs válidos com texto.'}`);
+  }
 
   const groupsText = valid
     .map((r, i) => `Grupo ${i + 1}: ${r.groupName}\n\n${r.cinText}`)
