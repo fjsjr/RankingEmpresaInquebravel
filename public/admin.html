@@ -412,7 +412,10 @@
       try {
         const res = await fetch('/api/groups');
         if (!res.ok) return;
-        groups = await res.json();
+        const raw = await res.json();
+        groups = raw.sort((a, b) =>
+          a.name.localeCompare(b.name, 'pt-BR', { numeric: true, sensitivity: 'base' })
+        );
         renderGroupsList();
         populateGroupSelects();
       } catch { /* ignora */ }
