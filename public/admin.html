@@ -346,6 +346,36 @@
     let currentAIChallenge = null;
     const groupPdfs = new Map(); // groupId → base64 PDF (exercício CIN)
 
+    const SESSION_KEY = 'ei_admin_session';
+    const SESSION_TTL = 24 * 60 * 60 * 1000; // 24h em ms
+
+    function saveSession(pwd) {
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ pwd, ts: Date.now() }));
+    }
+
+    function loadSession() {
+      try {
+        const raw = localStorage.getItem(SESSION_KEY);
+        if (!raw) return null;
+        const { pwd, ts } = JSON.parse(raw);
+        if (Date.now() - ts > SESSION_TTL) { localStorage.removeItem(SESSION_KEY); return null; }
+        return pwd;
+      } catch { return null; }
+    }
+
+    function clearSession() {
+      localStorage.removeItem(SESSION_KEY);
+    }
+
+    async function enterAdmin(pwd) {
+      adminPassword = pwd;
+      document.getElementById('login-error').style.display = 'none';
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('admin-panel').style.display = 'grid';
+      await fetchGroups();
+      showSection('groups');
+    }
+
     async function doLogin() {
       const pwd = document.getElementById('login-password').value;
       if (!pwd) return;
@@ -361,24 +391,34 @@
           return;
         }
 
-        adminPassword = pwd;
-        document.getElementById('login-error').style.display = 'none';
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('admin-panel').style.display = 'grid';
-        await fetchGroups();
-        showSection('groups');
+        saveSession(pwd);
+        await enterAdmin(pwd);
       } catch {
         document.getElementById('login-error').style.display = 'block';
       }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('login-password').addEventListener('keydown', e => {
         if (e.key === 'Enter') doLogin();
       });
+
+      // Tenta restaurar sessão salva
+      const cached = loadSession();
+      if (cached) {
+        try {
+          const res = await fetch('/api/auth/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-admin-password': cached },
+          });
+          if (res.ok) { await enterAdmin(cached); return; }
+        } catch {}
+        clearSession();
+      }
     });
 
     function doLogout() {
+      clearSession();
       adminPassword = '';
       document.getElementById('admin-panel').style.display = 'none';
       document.getElementById('login-screen').style.display = 'flex';
