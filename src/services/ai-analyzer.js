@@ -1,5 +1,7 @@
 import OpenAI from 'openai';
-import pdfParse from 'pdf-parse';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const pdfParse = require('pdf-parse');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
