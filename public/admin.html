@@ -55,6 +55,7 @@
         <button class="nav-item" onclick="showSection('scores')" id="nav-scores">🎯 Pontuação</button>
         <button class="nav-item" onclick="showSection('ai')" id="nav-ai">🤖 Análise IA</button>
         <button class="nav-item" onclick="showSection('cin')" id="nav-cin">📄 Análise CIN</button>
+        <button class="nav-item" onclick="showSection('plano')" id="nav-plano">📝 Plano de Ação</button>
         <button class="nav-item" onclick="showSection('history')" id="nav-history">📋 Histórico</button>
       </nav>
 
@@ -116,23 +117,34 @@
 
         <div class="card">
           <div class="card-title">🎯 Nova Pontuação</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-            <div class="form-group">
-              <label>Grupo</label>
-              <select id="score-group-select"><option value="">Selecione um grupo...</option></select>
+
+          <div class="form-group">
+            <label style="display:flex;align-items:center;justify-content:space-between">
+              <span>Grupos</span>
+              <span style="display:flex;gap:0.5rem">
+                <button type="button" onclick="toggleAllScoreGroups(true)" style="background:none;border:none;font-size:0.72rem;color:var(--accent);cursor:pointer;font-weight:600;padding:0">Selecionar todos</button>
+                <span style="color:var(--border)">|</span>
+                <button type="button" onclick="toggleAllScoreGroups(false)" style="background:none;border:none;font-size:0.72rem;color:var(--text-secondary);cursor:pointer;padding:0">Limpar</button>
+              </span>
+            </label>
+            <div id="score-groups-checkboxes" style="display:flex;flex-direction:column;gap:0.4rem;max-height:200px;overflow-y:auto;padding:0.5rem;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:0.5rem;margin-top:0.35rem">
+              <span style="font-size:0.8rem;color:var(--text-secondary)">Carregando grupos...</span>
             </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
             <div class="form-group">
               <label>Pontos</label>
               <input type="number" id="score-points" placeholder="Ex: 50" min="-500" max="1000" />
+            </div>
+            <div class="form-group">
+              <label>Responsável</label>
+              <input type="text" id="score-by" placeholder="Seu nome" maxlength="100" />
             </div>
           </div>
           <div class="form-group">
             <label>Motivo / Atividade</label>
             <input type="text" id="score-reason" placeholder="Descreva o motivo da pontuação" maxlength="200" />
-          </div>
-          <div class="form-group">
-            <label>Responsável</label>
-            <input type="text" id="score-by" placeholder="Seu nome" maxlength="100" />
           </div>
           <button class="btn btn-success btn-full" onclick="addManualScore()">✅ Confirmar Pontuação</button>
         </div>
@@ -296,6 +308,72 @@
         </div>
       </section>
 
+      <!-- ANÁLISE PLANO DE AÇÃO -->
+      <section id="section-plano" style="display:none">
+        <div class="admin-header"><h2>📝 Análise de Plano de Ação</h2></div>
+
+        <div class="card" style="margin-bottom:1rem">
+          <label style="font-size:0.78rem;font-weight:600;color:var(--text-secondary);letter-spacing:0.05em;text-transform:uppercase;display:block;margin-bottom:0.4rem">Foco da avaliação (opcional)</label>
+          <textarea id="plano-context"
+            placeholder="Ex: Avaliar alinhamento ao Método ALMA 8P e clareza dos responsáveis..."
+            style="min-height:56px;resize:vertical;font-size:0.85rem"></textarea>
+        </div>
+
+        <div class="card" style="margin-bottom:1rem">
+          <div style="font-size:0.78rem;font-weight:600;color:var(--text-secondary);letter-spacing:0.05em;text-transform:uppercase;margin-bottom:0.75rem">PDFs por Grupo</div>
+          <div id="plano-uploads-grid" style="display:flex;flex-direction:column;gap:0.75rem;max-height:55vh;overflow-y:auto;padding-right:0.25rem"></div>
+        </div>
+
+        <button class="btn btn-primary btn-full" id="plano-rank-btn" onclick="rankWithPlano()" style="margin-bottom:1.5rem">
+          📝 Analisar Planos de Ação com IA
+        </button>
+
+        <!-- Resultado Plano -->
+        <div id="plano-ranking-result" style="display:none">
+          <div class="card" style="margin-bottom:1rem">
+            <div style="font-size:0.7rem;font-weight:700;color:var(--accent);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.5rem">Síntese da Análise — Plano de Ação</div>
+            <p id="plano-summary" style="font-size:0.875rem;color:var(--text-primary);margin-bottom:1.25rem;line-height:1.6;font-style:italic;border-left:3px solid var(--accent);padding-left:0.75rem"></p>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+              <div style="background:rgba(0,220,255,0.05);border:1px solid rgba(0,220,255,0.15);border-radius:0.5rem;padding:0.75rem">
+                <div style="font-size:0.65rem;font-weight:700;color:var(--accent);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.35rem">⚙️ Gates</div>
+                <div style="font-size:0.78rem;color:var(--text-secondary);line-height:1.55" id="plano-visao-gates">—</div>
+              </div>
+              <div style="background:rgba(0,220,255,0.05);border:1px solid rgba(0,220,255,0.15);border-radius:0.5rem;padding:0.75rem">
+                <div style="font-size:0.65rem;font-weight:700;color:var(--accent);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.35rem">🎯 Bezos</div>
+                <div style="font-size:0.78rem;color:var(--text-secondary);line-height:1.55" id="plano-visao-bezos">—</div>
+              </div>
+              <div style="background:rgba(0,220,255,0.05);border:1px solid rgba(0,220,255,0.15);border-radius:0.5rem;padding:0.75rem">
+                <div style="font-size:0.65rem;font-weight:700;color:var(--accent);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.35rem">🚀 Musk</div>
+                <div style="font-size:0.78rem;color:var(--text-secondary);line-height:1.55" id="plano-visao-musk">—</div>
+              </div>
+            </div>
+            <div id="plano-sintese-wrapper" style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:0.75rem;padding:0.875rem;display:none">
+              <div style="font-size:0.65rem;font-weight:700;color:#6EE7B7;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.35rem">Orientação Estratégica</div>
+              <div style="font-size:0.78rem;color:var(--text-secondary);line-height:1.55" id="plano-sintese-final"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div style="font-size:0.7rem;font-weight:700;color:var(--accent);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.75rem">Ranking — Plano de Ação</div>
+            <table style="width:100%;border-collapse:collapse">
+              <thead>
+                <tr style="border-bottom:1px solid var(--border)">
+                  <th style="padding:0.5rem;text-align:left;font-size:0.72rem;color:var(--text-secondary)">#</th>
+                  <th style="padding:0.5rem;text-align:left;font-size:0.72rem;color:var(--text-secondary)">Grupo</th>
+                  <th style="padding:0.5rem;text-align:center;font-size:0.72rem;color:var(--text-secondary)">Nota</th>
+                  <th style="padding:0.5rem;text-align:left;font-size:0.72rem;color:var(--text-secondary)">Justificativa</th>
+                </tr>
+              </thead>
+              <tbody id="plano-ranking-table"></tbody>
+            </table>
+            <div style="display:flex;gap:0.5rem;margin-top:1rem">
+              <button class="btn btn-primary" onclick="confirmAllPlanoScores()">✅ Salvar Pontuações</button>
+              <button class="btn btn-ghost" onclick="resetPlanoRanking()">🔄 Nova Análise</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- HISTÓRICO -->
       <section id="section-history" style="display:none">
         <div class="admin-header"><h2>📋 Histórico de Pontuações</h2></div>
@@ -426,7 +504,7 @@
     }
 
     function showSection(name) {
-      ['groups','scores','ai','cin','history'].forEach(s => {
+      ['groups','scores','ai','cin','plano','history'].forEach(s => {
         document.getElementById(`section-${s}`).style.display = s === name ? 'block' : 'none';
         document.getElementById(`nav-${s}`).classList.toggle('active', s === name);
       });
@@ -434,6 +512,7 @@
       if (name === 'history') loadHistory();
       if (name === 'ai') renderResponsesGrid();
       if (name === 'cin') renderCinUploadsGrid();
+      if (name === 'plano') renderPlanoUploadsGrid();
     }
 
     async function api(method, path, body) {
@@ -481,7 +560,7 @@
     }
 
     function populateGroupSelects() {
-      ['participant-group-select','score-group-select','history-group-filter'].forEach(id => {
+      ['participant-group-select','history-group-filter'].forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
         const isHistory = id === 'history-group-filter';
@@ -489,6 +568,26 @@
         el.innerHTML = `<option value="">${isHistory ? 'Todos os grupos' : 'Selecione um grupo...'}</option>` +
           groups.map(g => `<option value="${g.id}" ${g.id === current ? 'selected' : ''}>${escHtml(g.name)}</option>`).join('');
       });
+      renderScoreGroupsCheckboxes();
+    }
+
+    function renderScoreGroupsCheckboxes() {
+      const container = document.getElementById('score-groups-checkboxes');
+      if (!container) return;
+      if (!groups.length) {
+        container.innerHTML = '<span style="font-size:0.8rem;color:var(--text-secondary)">Nenhum grupo cadastrado.</span>';
+        return;
+      }
+      container.innerHTML = groups.map(g => `
+        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;padding:0.25rem 0.35rem;border-radius:0.35rem;transition:background 0.15s" onmouseover="this.style.background='rgba(0,220,255,0.06)'" onmouseout="this.style.background='none'">
+          <input type="checkbox" value="${g.id}" class="score-group-cb" style="accent-color:var(--accent);width:15px;height:15px;cursor:pointer" />
+          <span style="width:10px;height:10px;border-radius:50%;background:${escHtml(g.color)};flex-shrink:0;display:inline-block"></span>
+          <span style="font-size:0.85rem;color:var(--text-primary);font-weight:500">${escHtml(g.name)}</span>
+        </label>`).join('');
+    }
+
+    function toggleAllScoreGroups(check) {
+      document.querySelectorAll('.score-group-cb').forEach(cb => cb.checked = check);
     }
 
     async function createGroup() {
@@ -526,19 +625,21 @@
     }
 
     async function addManualScore() {
-      const groupId = document.getElementById('score-group-select').value;
+      const groupIds = [...document.querySelectorAll('.score-group-cb:checked')].map(cb => cb.value);
       const points = document.getElementById('score-points').value;
       const reason = document.getElementById('score-reason').value.trim();
       const createdBy = document.getElementById('score-by').value.trim();
-      if (!groupId) return showToast('Selecione um grupo', 'error');
+      if (!groupIds.length) return showToast('Selecione ao menos um grupo', 'error');
       if (!points) return showToast('Informe os pontos', 'error');
       try {
-        await api('POST', '/scores/manual', { groupId, points: parseInt(points), reason, createdBy });
+        const res = await api('POST', '/scores/manual-batch', { groupIds, points: parseInt(points), reason, createdBy });
         document.getElementById('score-points').value = '';
         document.getElementById('score-reason').value = '';
+        toggleAllScoreGroups(false);
         await fetchGroups();
         await loadQuickRanking();
-        showToast(`${parseInt(points) >= 0 ? '+' : ''}${points} pontos adicionados!`, 'success');
+        const label = parseInt(points) >= 0 ? `+${points}` : `${points}`;
+        showToast(`${label} pontos adicionados a ${res.saved} grupo${res.saved > 1 ? 's' : ''}!`, 'success');
       } catch (e) { showToast(e.message, 'error'); }
     }
 
@@ -841,6 +942,145 @@
       groups.forEach(g => removeCinUpload(g.id));
       groupPdfs.clear();
       currentCINRanking = null;
+    }
+
+    // ── PLANO DE AÇÃO ─────────────────────────────────────────────
+    let currentPlanoRanking = null;
+    const groupPlanos = new Map(); // groupId → base64 PDF
+
+    function renderPlanoUploadsGrid() {
+      const grid = document.getElementById('plano-uploads-grid');
+      if (!groups.length) {
+        grid.innerHTML = '<p style="color:var(--text-secondary);font-size:0.875rem">Nenhum grupo cadastrado.</p>';
+        return;
+      }
+      grid.innerHTML = groups.map(g => `
+        <div style="display:grid;grid-template-columns:130px 1fr;gap:0.75rem;align-items:center">
+          <div style="display:flex;align-items:center;gap:0.4rem">
+            <span style="width:10px;height:10px;border-radius:50%;background:${escHtml(g.color)};flex-shrink:0;display:inline-block"></span>
+            <span style="font-size:0.8rem;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(g.name)}</span>
+          </div>
+          <div>
+            <label style="display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer;padding:0.35rem 0.7rem;background:rgba(0,220,255,0.08);border:1px solid rgba(0,220,255,0.2);border-radius:0.5rem;font-size:0.75rem;color:var(--accent);font-weight:600">
+              📎 Selecionar PDF
+              <input type="file" accept=".pdf" style="display:none" onchange="onPlanoUpload(event,'${g.id}')">
+            </label>
+            <div id="plano-file-${g.id}" style="display:none;align-items:center;gap:0.3rem;margin-top:0.3rem">
+              <span style="font-size:0.72rem;color:#6EE7B7" id="plano-fname-${g.id}"></span>
+              <button onclick="removePlanoUpload('${g.id}')" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:0.75rem;padding:0">✕</button>
+            </div>
+          </div>
+        </div>`).join('');
+    }
+
+    function onPlanoUpload(event, groupId) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        groupPlanos.set(groupId, e.target.result);
+        document.getElementById(`plano-fname-${groupId}`).textContent = file.name;
+        document.getElementById(`plano-file-${groupId}`).style.display = 'flex';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removePlanoUpload(groupId) {
+      groupPlanos.delete(groupId);
+      const el = document.getElementById(`plano-file-${groupId}`);
+      if (el) el.style.display = 'none';
+    }
+
+    async function rankWithPlano() {
+      const context = document.getElementById('plano-context').value.trim();
+      const responses = groups.map(g => ({
+        groupId: g.id,
+        groupName: g.name,
+        pdfData: groupPlanos.get(g.id) || null,
+      }));
+
+      const withPdf = responses.filter(r => r.pdfData);
+      if (!withPdf.length) return showToast('Selecione ao menos um PDF de Plano de Ação', 'error');
+
+      const btn = document.getElementById('plano-rank-btn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Lendo PDFs e analisando... (pode levar alguns segundos)';
+
+      try {
+        const result = await api('POST', '/scores/plano-rank-all', { context, responses });
+        currentPlanoRanking = result.ranking;
+        showPlanoRankingResult(result);
+      } catch (e) {
+        showToast('Erro: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '📝 Analisar Planos de Ação com IA';
+      }
+    }
+
+    function showPlanoRankingResult(result) {
+      document.getElementById('plano-summary').textContent = result.summary || '';
+      document.getElementById('plano-visao-gates').textContent = result.visaoGates || '—';
+      document.getElementById('plano-visao-bezos').textContent = result.visaoBezos || '—';
+      document.getElementById('plano-visao-musk').textContent = result.visaoMusk || '—';
+
+      const sintese = result.sinteseFinal || '';
+      const sinteseWrapper = document.getElementById('plano-sintese-wrapper');
+      if (sintese) {
+        document.getElementById('plano-sintese-final').textContent = sintese;
+        sinteseWrapper.style.display = 'block';
+      } else {
+        sinteseWrapper.style.display = 'none';
+      }
+
+      const medals = ['🥇','🥈','🥉'];
+      const tbody = document.getElementById('plano-ranking-table');
+      tbody.innerHTML = result.ranking.map((item, idx) => {
+        const medal = item.rank <= 3 ? medals[item.rank - 1] : '';
+        const pts = Number(item.points) || 0;
+        const ptsColor = pts > 0 ? '#6EE7B7' : 'var(--text-secondary)';
+        const rowBg = item.rank === 1 ? 'rgba(251,191,36,0.05)' : item.rank <= 3 ? 'rgba(110,231,183,0.04)' : '';
+        return `
+          <tr style="border-bottom:1px solid var(--border);background:${rowBg}">
+            <td style="padding:0.5rem;font-weight:700;font-size:0.95rem">${medal || item.rank + 'º'}</td>
+            <td style="padding:0.5rem;font-weight:600">${escHtml(item.groupName)}</td>
+            <td style="padding:0.5rem;text-align:center">
+              <input type="number" value="${pts}" min="0" max="10"
+                id="plano-pts-${idx}"
+                style="width:52px;text-align:center;font-weight:700;color:${ptsColor};padding:0.2rem 0.3rem;font-size:0.9rem" />
+            </td>
+            <td style="padding:0.5rem;color:var(--text-secondary);font-size:0.78rem;line-height:1.5">${escHtml(item.justification)}</td>
+          </tr>`;
+      }).join('');
+
+      document.getElementById('plano-ranking-result').style.display = 'block';
+      document.getElementById('plano-ranking-result').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function confirmAllPlanoScores() {
+      if (!currentPlanoRanking) return;
+      const ranking = currentPlanoRanking.map((item, idx) => {
+        const el = document.getElementById(`plano-pts-${idx}`);
+        const pts = el ? Number(el.value) : Number(item.points);
+        return { ...item, points: isNaN(pts) ? 0 : pts };
+      });
+      try {
+        const res = await api('POST', '/scores/ai-confirm-all', {
+          challenge: 'Análise de Plano de Ação — Método ALMA 8P',
+          ranking,
+        });
+        showToast(`✅ ${res.saved} pontuações salvas!`, 'success');
+        resetPlanoRanking();
+        await fetchGroups();
+      } catch (e) { showToast(e.message, 'error'); }
+    }
+
+    function resetPlanoRanking() {
+      document.getElementById('plano-ranking-result').style.display = 'none';
+      document.getElementById('plano-context').value = '';
+      groups.forEach(g => removePlanoUpload(g.id));
+      groupPlanos.clear();
+      currentPlanoRanking = null;
     }
 
     async function loadHistory() {

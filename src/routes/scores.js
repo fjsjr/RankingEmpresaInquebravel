@@ -45,6 +45,36 @@ router.post('/manual', requireAdmin, async (req, res) => {
   }
 });
 
+// POST /api/scores/manual-batch — pontuação manual para múltiplos grupos de uma vez
+router.post('/manual-batch', requireAdmin, async (req, res) => {
+  try {
+    const { groupIds, points, reason, createdBy } = req.body;
+
+    if (!Array.isArray(groupIds) || groupIds.length === 0) {
+      return res.status(400).json({ error: 'groupIds deve ser um array não vazio' });
+    }
+    const parsedPoints = parseInt(points);
+    if (isNaN(parsedPoints)) {
+      return res.status(400).json({ error: 'points deve ser um número inteiro' });
+    }
+
+    const rows = groupIds.map(groupId => ({
+      group_id: groupId,
+      points: parsedPoints,
+      reason: reason?.trim() || 'Pontuação manual',
+      type: 'manual',
+      created_by: createdBy?.trim() || 'Admin',
+    }));
+
+    const { error } = await supabaseAdmin.from('scores').insert(rows);
+    if (error) return res.status(500).json({ error: error.message });
+
+    res.status(201).json({ success: true, saved: rows.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/scores/ai-rank-all — IA rankeia todos os grupos de uma vez
 router.post('/ai-rank-all', requireAdmin, async (req, res) => {
   try {
@@ -91,6 +121,15 @@ router.post('/ai-confirm-all', requireAdmin, async (req, res) => {
         created_by: 'IA',
       }));
 
+    const semId = ranking.filter(item => !item.groupId).map(item => item.groupName);
+    if (semId.length > 0) {
+      console.warn('[ai-confirm-all] Grupos sem groupId (não salvos):', semId);
+    }
+
+    if (!rows.length) {
+      return res.status(400).json({ error: 'Nenhum grupo com ID válido encontrado. Verifique se os nomes retornados pela IA correspondem aos grupos cadastrados.' });
+    }
+
     const { error } = await supabaseAdmin.from('scores').insert(rows);
     if (error) return res.status(500).json({ error: error.message });
 
@@ -118,6 +157,34 @@ router.post('/cin-rank-all', requireAdmin, async (req, res) => {
     try {
       const { rankCinGroups } = await getAiAnalyzer();
       result = await rankCinGroups({ context: context?.trim() || '', responses });
+    } catch (aiErr) {
+      return res.status(502).json({ error: `Falha na análise da IA: ${aiErr.message}` });
+    }
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/scores/plano-rank-all — IA analisa Planos de Ação (PDFs) de todos os grupos
+router.post('/plano-rank-all', requireAdmin, async (req, res) => {
+  try {
+    const { context, responses } = req.body;
+
+    if (!Array.isArray(responses) || responses.length === 0) {
+      return res.status(400).json({ error: 'responses deve ser um array com os grupos e seus PDFs' });
+    }
+
+    const withPdf = responses.filter(r => r.pdfData);
+    if (!withPdf.length) {
+      return res.status(400).json({ error: 'Nenhum grupo enviou PDF do Plano de Ação' });
+    }
+
+    let result;
+    try {
+      const { rankPlanosAcao } = await getAiAnalyzer();
+      result = await rankPlanosAcao({ context: context?.trim() || '', responses });
     } catch (aiErr) {
       return res.status(502).json({ error: `Falha na análise da IA: ${aiErr.message}` });
     }

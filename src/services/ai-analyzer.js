@@ -97,17 +97,33 @@ Você é um conselheiro de avaliação que combina três perspectivas complement
 `;
 
 // ─── HELPERS COMPARTILHADOS ───────────────────────────────────────────────────
+function resolveGroupId(aiName, nameToId) {
+  if (nameToId[aiName]) return nameToId[aiName];
+  const norm = s => s?.trim().toLowerCase().replace(/\s+/g, ' ') || '';
+  const normalized = norm(aiName);
+  for (const [name, id] of Object.entries(nameToId)) {
+    if (norm(name) === normalized) return id;
+  }
+  // fallback: match substring para caso IA retorne "Grupo N: Nome" em vez de só "Nome"
+  for (const [name, id] of Object.entries(nameToId)) {
+    if (normalized.includes(norm(name)) || norm(name).includes(normalized)) return id;
+  }
+  return null;
+}
+
 function buildRankingResult(result, responses, nameToId) {
-  const rankedNames = new Set(result.ranking.map(r => r.groupName));
+  const resolvedNames = new Set(
+    result.ranking.map(r => resolveGroupId(r.groupName, nameToId)).filter(Boolean)
+  );
   responses
-    .filter(r => !rankedNames.has(r.groupName))
+    .filter(r => !resolvedNames.has(nameToId[r.groupName]))
     .forEach(r => {
       result.ranking.push({ groupName: r.groupName, points: 0, justification: 'Sem entrega registrada.' });
     });
 
   const withPts = result.ranking.map(item => ({
     ...item,
-    groupId: nameToId[item.groupName] || null,
+    groupId: resolveGroupId(item.groupName, nameToId),
     points: Math.min(10, Math.max(0, parseInt(item.points) || 0)),
   }));
 
@@ -326,6 +342,127 @@ CRÍTICO: inclua APENAS os ${valid.length} grupos que entregaram o CIN. Ordene d
     result = extractJSON(raw);
   } catch (e) {
     console.error('[AI rankCinGroups] Raw inválido:\n', raw?.slice(0, 800));
+    throw e;
+  }
+
+  const nameToId = {};
+  responses.forEach(r => { nameToId[r.groupName] = r.groupId; });
+
+  return {
+    summary: result.summary || '',
+    visaoGates: result.visaoGates || '',
+    visaoBezos: result.visaoBezos || '',
+    visaoMusk: result.visaoMusk || '',
+    sinteseFinal: result.sinteseFinal || '',
+    ranking: buildRankingResult(result, responses, nameToId),
+  };
+}
+
+// ─── EXERCÍCIO 3: RANKING POR PLANO DE AÇÃO ──────────────────────────────────
+export async function rankPlanosAcao({ context, responses }) {
+  const withText = await Promise.all(
+    responses.map(async r => {
+      if (!r.pdfData) return { ...r, planoText: null, planoError: null };
+      try {
+        const planoText = await extractPdfText(r.pdfData);
+        return { ...r, planoText, planoError: null };
+      } catch (err) {
+        console.error(`[PDF extract plano] ${r.groupName}:`, err.message);
+        return { ...r, planoText: null, planoError: err.message };
+      }
+    })
+  );
+
+  const valid = withText.filter(r => r.planoText);
+  const failed = withText.filter(r => r.pdfData && r.planoError);
+
+  if (!valid.length) {
+    const detail = failed.map(r => `${r.groupName}: ${r.planoError}`).join('; ');
+    throw new Error(`Falha ao ler os PDFs enviados. ${detail || 'Verifique se os arquivos são PDFs válidos com texto.'}`);
+  }
+
+  const groupsText = valid
+    .map((r, i) => `Grupo ${i + 1}: ${r.groupName}\n\n${r.planoText}`)
+    .join('\n\n════════════════════════════════════\n\n');
+
+  const contextNote = context?.trim()
+    ? `FOCO DA AVALIAÇÃO SOLICITADO PELO FACILITADOR:\n${context.trim()}\n\n---\n\n`
+    : '';
+
+  const prompt = `Você é o AGENTE AVALIADOR TRINO do evento corporativo "Empresa Inquebrável".
+
+${AGENTE_TRINO}
+
+---
+
+${EI_METHODOLOGY}
+
+---
+
+EXERCÍCIO: ANÁLISE DO PLANO DE AÇÃO
+
+${contextNote}Cada grupo abaixo enviou seu Plano de Ação, que deve demonstrar como a empresa vai implementar a metodologia Empresa Inquebrável. Avalie a qualidade estratégica e executiva de cada plano.
+
+PLANOS DE AÇÃO DOS GRUPOS (${valid.length} grupos com entrega):
+
+${groupsText}
+
+---
+
+CRITÉRIOS DE AVALIAÇÃO DO PLANO DE AÇÃO:
+
+PASSO 1 — Leia cada plano com atenção. Avalie as seguintes dimensões:
+
+  • CLAREZA DE OBJETIVOS: Há metas claras e mensuráveis? A Meta Única Global está presente?
+  • RESPONSÁVEIS E PRAZOS: Cada ação tem um dono e uma data? (Checklist do Dono — Passo 8)
+  • ALINHAMENTO AO MÉTODO ALMA 8P: O plano cobre os 8 passos? Tem Alma, Meta, Organograma, Rituais?
+  • EXECUÇÃO REALISTA: As ações são concretas e executáveis no prazo proposto?
+  • INDICADORES DE RESULTADO: Há KPIs, metas numéricas ou painel de gestão à vista?
+  • ENVOLVIMENTO DO TIME: O plano inclui engajamento da equipe (Estratégias com o Time — Passo 4)?
+  • SEQUÊNCIA LÓGICA: O plano segue a ordem: Alma → Meta → Estrutura → Execução → Multiplicação?
+
+PASSO 2 — Aplique as TRÊS VISÕES:
+  • GATES: O plano é sistêmico? Tem responsáveis claros, métricas e prazos? É escalável?
+  • BEZOS: O cliente está no centro do plano? As ações geram valor real no longo prazo?
+  • MUSK: O plano é ousado o suficiente? Vai além do óbvio? Ou é genérico e burocrático?
+
+ESCALA DE NOTAS — USE COM RIGOR:
+  • 10 pts → Plano completo, com metas claras, responsáveis, prazos, indicadores e forte alinhamento ao ALMA 8P. Demonstra compreensão profunda da metodologia EI.
+  • 7–9 pts → Bom plano: cobre a maioria dos critérios com qualidade, algumas lacunas menores.
+  • 4–6 pts → Plano parcial: falta clareza em metas, responsáveis ou indicadores. Alinhamento EI superficial.
+  • 1–3 pts → Plano muito fraco: vago, sem dono, sem prazo, sem métrica. Desconexo da metodologia EI.
+  • 0 pts → Sem entrega ou conteúdo completamente fora do escopo.
+
+REGRAS INEGOCIÁVEIS:
+- A nota reflete a QUALIDADE E EXECUTABILIDADE do plano, não o tamanho ou intenção
+- NÃO infle notas — um plano sem responsáveis e sem métricas é 1-3, independente da boa intenção
+- Múltiplos grupos podem ter a mesma nota se merecerem
+- Ordene o array "ranking" do maior para o menor "points"
+
+Retorne SOMENTE um JSON válido, sem markdown, neste formato exato:
+{
+  "summary": "<o que diferenciou os melhores planos dos piores — 2 frases diretas>",
+  "visaoGates": "<diagnóstico geral: quais grupos têm planos sistêmicos com donos e métricas vs. planos vagos>",
+  "visaoBezos": "<quem demonstrou foco no cliente e geração de valor real no plano>",
+  "visaoMusk": "<quem ousou e trouxe ações inovadoras vs. quem reproduziu planos genéricos>",
+  "sinteseFinal": "<recomendação estratégica: o que os grupos devem melhorar nos planos de ação>",
+  "ranking": [
+    {
+      "groupName": "<nome exato do grupo>",
+      "points": <0 a 10>,
+      "justification": "<1-2 frases diretas: por que recebeu essa nota no Plano de Ação>"
+    }
+  ]
+}
+
+CRÍTICO: inclua APENAS os ${valid.length} grupos que entregaram o Plano de Ação. Ordene do maior para o menor "points".`;
+
+  const raw = await callChat(prompt);
+  let result;
+  try {
+    result = extractJSON(raw);
+  } catch (e) {
+    console.error('[AI rankPlanosAcao] Raw inválido:\n', raw?.slice(0, 800));
     throw e;
   }
 
