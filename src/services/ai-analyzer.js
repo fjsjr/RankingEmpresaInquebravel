@@ -1,6 +1,35 @@
 import OpenAI from 'openai';
+import DOMMatrixPolyfill from 'dommatrix';
+import { Path2D as Path2DPolyfill } from 'path2d';
 import { PDFParse } from 'pdf-parse';
 
+// pdf-parse (via pdfjs-dist) tenta carregar @napi-rs/canvas em runtime para
+// polyfillar DOMMatrix/Path2D/ImageData. Esse require dinâmico não é
+// detectado pelo tracer de build da Vercel, então o binário nativo não vai
+// para o bundle da function — em produção o require falha silenciosamente
+// e o pdf-parse quebra com "DOMMatrix is not defined". Polyfillamos aqui
+// com implementações puras em JS antes de qualquer parsing de PDF.
+if (typeof globalThis.DOMMatrix === 'undefined') {
+  globalThis.DOMMatrix = DOMMatrixPolyfill;
+}
+if (typeof globalThis.Path2D === 'undefined') {
+  globalThis.Path2D = Path2DPolyfill;
+}
+if (typeof globalThis.ImageData === 'undefined') {
+  globalThis.ImageData = class ImageData {
+    constructor(dataOrWidth, widthOrHeight, height) {
+      if (dataOrWidth instanceof Uint8ClampedArray) {
+        this.data = dataOrWidth;
+        this.width = widthOrHeight;
+        this.height = height;
+      } else {
+        this.width = dataOrWidth;
+        this.height = widthOrHeight;
+        this.data = new Uint8ClampedArray(this.width * this.height * 4);
+      }
+    }
+  };
+}
 
 let openai = null;
 
