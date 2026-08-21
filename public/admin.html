@@ -801,6 +801,7 @@
 
     // ── CIN: GRID DE UPLOADS ─────────────────────────────────────
     let currentCINRanking = null;
+    let currentCINReport = null;
     // groupPdfs declarado no topo com as outras variáveis de estado
 
     function renderCinUploadsGrid() {
@@ -870,6 +871,7 @@
       try {
         const result = await api('POST', '/scores/cin-rank-all', { context, responses });
         currentCINRanking = result.ranking;
+        currentCINReport = result;
         showCINRankingResult(result);
       } catch (e) {
         showToast('Erro: ' + e.message, 'error');
@@ -928,6 +930,12 @@
       try {
         const res = await api('POST', '/scores/ai-confirm-all', {
           challenge: 'Análise CIN — Centro de Inteligência de Negócio',
+          exercise: 'CIN',
+          summary: currentCINReport?.summary || '',
+          visaoGates: currentCINReport?.visaoGates || '',
+          visaoBezos: currentCINReport?.visaoBezos || '',
+          visaoMusk: currentCINReport?.visaoMusk || '',
+          sinteseFinal: currentCINReport?.sinteseFinal || '',
           ranking,
         });
         showToast(`✅ ${res.saved} pontuações CIN salvas!`, 'success');
@@ -942,10 +950,12 @@
       groups.forEach(g => removeCinUpload(g.id));
       groupPdfs.clear();
       currentCINRanking = null;
+      currentCINReport = null;
     }
 
     // ── PLANO DE AÇÃO ─────────────────────────────────────────────
     let currentPlanoRanking = null;
+    let currentPlanoReport = null;
     const groupPlanos = new Map(); // groupId → base64 PDF
 
     function renderPlanoUploadsGrid() {
@@ -1009,6 +1019,7 @@
       try {
         const result = await api('POST', '/scores/plano-rank-all', { context, responses });
         currentPlanoRanking = result.ranking;
+        currentPlanoReport = result;
         showPlanoRankingResult(result);
       } catch (e) {
         showToast('Erro: ' + e.message, 'error');
@@ -1067,6 +1078,12 @@
       try {
         const res = await api('POST', '/scores/ai-confirm-all', {
           challenge: 'Análise de Plano de Ação — Método ALMA 8P',
+          exercise: 'Plano de Ação',
+          summary: currentPlanoReport?.summary || '',
+          visaoGates: currentPlanoReport?.visaoGates || '',
+          visaoBezos: currentPlanoReport?.visaoBezos || '',
+          visaoMusk: currentPlanoReport?.visaoMusk || '',
+          sinteseFinal: currentPlanoReport?.sinteseFinal || '',
           ranking,
         });
         showToast(`✅ ${res.saved} pontuações salvas!`, 'success');
@@ -1081,6 +1098,7 @@
       groups.forEach(g => removePlanoUpload(g.id));
       groupPlanos.clear();
       currentPlanoRanking = null;
+      currentPlanoReport = null;
     }
 
     async function loadHistory() {
@@ -1104,7 +1122,10 @@
           container.innerHTML = '<p style="color:var(--text-secondary);font-size:0.875rem">Nenhuma pontuação registrada.</p>';
           return;
         }
-        container.innerHTML = allScores.map(s => `
+        container.innerHTML = allScores.map(s => {
+          const a = s.ai_analysis;
+          const hasReport = a && (a.summary || a.visaoGates || a.visaoBezos || a.visaoMusk || a.sinteseFinal);
+          return `
           <div class="score-item">
             <span class="score-type-badge ${s.type === 'ai' ? 'badge-ai' : 'badge-manual'}">
               ${s.type === 'ai' ? '🤖 IA' : '✍️ Manual'}
@@ -1112,16 +1133,29 @@
             <div class="score-info">
               <div style="font-weight:600;font-size:0.85rem">${escHtml(s.groupName || '—')}</div>
               <div class="score-reason">${escHtml(s.reason || '—')}</div>
+              ${a?.justification ? `<div style="font-size:0.75rem;color:var(--text-secondary);font-style:italic;margin-top:0.15rem">"${escHtml(a.justification)}"</div>` : ''}
               <div style="font-size:0.7rem;color:var(--text-secondary)">
                 ${new Date(s.created_at).toLocaleString('pt-BR')} · ${escHtml(s.created_by || '—')}
               </div>
+              ${hasReport ? `
+                <details style="margin-top:0.4rem">
+                  <summary style="cursor:pointer;font-size:0.72rem;color:var(--accent)">Ver relatório completo da IA</summary>
+                  <div style="font-size:0.75rem;color:var(--text-secondary);line-height:1.5;margin-top:0.4rem;display:flex;flex-direction:column;gap:0.35rem">
+                    ${a.summary ? `<div><strong>Resumo:</strong> ${escHtml(a.summary)}</div>` : ''}
+                    ${a.visaoGates ? `<div><strong>Visão Gates:</strong> ${escHtml(a.visaoGates)}</div>` : ''}
+                    ${a.visaoBezos ? `<div><strong>Visão Bezos:</strong> ${escHtml(a.visaoBezos)}</div>` : ''}
+                    ${a.visaoMusk ? `<div><strong>Visão Musk:</strong> ${escHtml(a.visaoMusk)}</div>` : ''}
+                    ${a.sinteseFinal ? `<div><strong>Síntese final:</strong> ${escHtml(a.sinteseFinal)}</div>` : ''}
+                  </div>
+                </details>` : ''}
             </div>
             <div>
               <div class="score-points ${s.points >= 0 ? 'positive' : 'negative'}">${s.points >= 0 ? '+' : ''}${s.points}</div>
               <button class="btn btn-danger btn-sm" onclick="deleteScore('${s.id}')" style="margin-top:0.25rem;font-size:0.65rem;padding:0.2rem 0.5rem">🗑</button>
             </div>
           </div>
-        `).join('');
+        `;
+        }).join('');
       } catch (e) {
         container.innerHTML = `<p style="color:var(--danger)">Erro: ${escHtml(e.message)}</p>`;
       }

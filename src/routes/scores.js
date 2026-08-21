@@ -104,11 +104,13 @@ router.post('/ai-rank-all', requireAdmin, async (req, res) => {
 // POST /api/scores/ai-confirm-all — salva pontuações de todos os grupos de uma vez
 router.post('/ai-confirm-all', requireAdmin, async (req, res) => {
   try {
-    const { challenge, ranking } = req.body;
+    const { challenge, ranking, exercise, summary, visaoGates, visaoBezos, visaoMusk, sinteseFinal } = req.body;
 
     if (!Array.isArray(ranking) || ranking.length === 0) {
       return res.status(400).json({ error: 'ranking é obrigatório' });
     }
+
+    const report = { exercise, summary, visaoGates, visaoBezos, visaoMusk, sinteseFinal };
 
     const rows = ranking
       .filter(item => item.groupId)
@@ -117,7 +119,7 @@ router.post('/ai-confirm-all', requireAdmin, async (req, res) => {
         points: parseInt(item.points) || 0,
         reason: challenge?.trim() || 'Análise por IA',
         type: 'ai',
-        ai_analysis: { rank: item.rank, justification: item.justification },
+        ai_analysis: { rank: item.rank, justification: item.justification, ...report },
         created_by: 'IA',
       }));
 
