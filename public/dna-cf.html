@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DNA CF — Ranking | CF Contabilidade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ── Identidade Visual: CF Contabilidade ──
+       Paleta oficial (tailwind.config do Diagnóstico CF Franquias):
+       cf-blue #0A3DFF · cf-blue-violet #6C63FF · cf-blue-dark #071D5A
+       cf-bg-dark #050816 · cf-success #10B981 · cf-gold #F5B400 */
+    :root {
+      --gold:    #F5B400;
+      --silver:  #B8C4D0;
+      --bronze:  #CD8B4A;
+      --bg:      #050816;
+      --bg-deep: #071D5A;
+      --blue:    #0A3DFF;
+      --violet:  #6C63FF;
+      --cyan:    #4FC3FF;
+      --green:   #10B981;
+      --text:    #F8FAFC;
+      --muted:   #94A3B8;
+      --cardn:   rgba(10,61,255,0.06);
+      --font-display: 'Space Grotesk', sans-serif;
+      --font-body:    'Inter', sans-serif;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    html, body { height: 100%; }
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── FUNDO: FILAMENTO DE DNA ANIMADO ── */
+    #dna-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      display: block;
+    }
+    .bg-glow {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse at 50% -10%, rgba(10,61,255,0.22) 0%, transparent 55%),
+        radial-gradient(ellipse at 100% 100%, rgba(108,99,255,0.14) 0%, transparent 50%),
+        radial-gradient(ellipse at 0% 90%, rgba(16,185,129,0.08) 0%, transparent 45%);
+    }
+    /* Vinheta para manter leitura no centro */
+    .bg-vignette {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background: radial-gradient(ellipse at 50% 45%, rgba(5,8,22,0.55) 0%, rgba(5,8,22,0.15) 45%, transparent 75%);
+    }
+
+    /* ── LAYOUT ── */
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    /* ── HEADER ── */
+    header { text-align: center; margin-bottom: 2.5rem; }
+    .brand-logo {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 0.9rem;
+    }
+    .brand-logo img {
+      height: 64px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 0 18px rgba(10,61,255,0.55));
+    }
+    .edition-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: var(--font-display);
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      border: 1px solid rgba(79,195,255,0.3);
+      padding: 0.25rem 0.85rem;
+      border-radius: 999px;
+      background: rgba(10,61,255,0.12);
+      margin-bottom: 0.6rem;
+    }
+    .edition-badge svg { width: 14px; height: 14px; }
+    .event-title {
+      font-family: var(--font-display);
+      font-size: clamp(2.4rem, 7vw, 4.2rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      text-transform: uppercase;
+      background: linear-gradient(120deg, #4FC3FF 0%, #0A3DFF 40%, #6C63FF 75%, #4FC3FF 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      background-size: 220%;
+      animation: gradShift 6s ease-in-out infinite alternate;
+    }
+    @keyframes gradShift {
+      from { background-position: 0% 50%; }
+      to   { background-position: 100% 50%; }
+    }
+    .event-subtitle {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-top: 0.5rem;
+      letter-spacing: 0.02em;
+    }
+    .event-subtitle strong { color: var(--text); font-weight: 600; }
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(16,185,129,0.10);
+      border: 1px solid rgba(16,185,129,0.35);
+      color: var(--green);
+      font-size: 0.7rem;
+      font-weight: 700;
+      font-family: var(--font-display);
+      letter-spacing: 0.14em;
+      padding: 0.3rem 0.9rem;
+      border-radius: 999px;
+      margin-top: 0.85rem;
+    }
+    .live-dot {
+      width: 7px; height: 7px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: livePulse 1.4s ease-in-out infinite;
+    }
+    @keyframes livePulse {
+      0%,100% { transform: scale(1); opacity: 1; }
+      50%      { transform: scale(0.6); opacity: 0.4; }
+    }
+
+    /* ── EMPTY STATE ── */
+    .empty { text-align: center; padding: 5rem 1rem; color: var(--muted); }
+    .empty .icon { font-size: 3.5rem; margin-bottom: 1rem; }
+    .empty h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text); }
+
+    /* ── CARDS ── */
+    #ranking-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+    .rank-card {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 1rem;
+      border-radius: 1rem;
+      padding: 1rem 1.25rem;
+      border: 1px solid rgba(255,255,255,0.07);
+      background: linear-gradient(135deg, rgba(10,61,255,0.10) 0%, rgba(7,12,32,0.92) 55%);
+      backdrop-filter: blur(6px);
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.5s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.4s ease;
+      animation: cardIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+    .rank-card:hover { transform: translateX(6px) scale(1.01); border-color: rgba(108,99,255,0.35); }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(30px) scale(0.95); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* ── ESCUDO ── */
+    .shield-wrap { display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .shield {
+      width: 52px; height: 58px;
+      position: relative;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .shield-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .shield-pos { position: relative; z-index: 1; font-size: 1.05rem; font-weight: 900; line-height: 1; }
+    .shield-icon { position: relative; z-index: 1; font-size: 1.3rem; line-height: 1; }
+    .podium-1 .shield { animation: shieldGlow1 2.5s ease-in-out infinite alternate; }
+    .podium-2 .shield { animation: shieldGlow2 2.5s ease-in-out infinite alternate; }
+    .podium-3 .shield { animation: shieldGlow3 2.5s ease-in-out infinite alternate; }
+    @keyframes shieldGlow1 { from { filter: drop-shadow(0 0 4px rgba(245,180,0,0.4)); } to { filter: drop-shadow(0 0 14px rgba(245,180,0,0.85)); } }
+    @keyframes shieldGlow2 { from { filter: drop-shadow(0 0 3px rgba(184,196,208,0.3)); } to { filter: drop-shadow(0 0 10px rgba(184,196,208,0.7)); } }
+    @keyframes shieldGlow3 { from { filter: drop-shadow(0 0 3px rgba(205,139,74,0.3)); } to { filter: drop-shadow(0 0 10px rgba(205,139,74,0.7)); } }
+
+    /* ── CORPO DO CARD ── */
+    .card-body { min-width: 0; }
+    .group-name {
+      font-weight: 800;
+      font-size: 1.05rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      margin-bottom: 0.35rem;
+    }
+    .group-members {
+      font-size: 0.72rem; color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      margin-bottom: 0.5rem;
+    }
+    .bar-track { height: 8px; background: rgba(255,255,255,0.07); border-radius: 4px; overflow: hidden; }
+    .bar-fill {
+      height: 100%; border-radius: 4px; width: 0%;
+      transition: width 0.9s cubic-bezier(0.34, 1.2, 0.64, 1);
+      background: linear-gradient(90deg, #0A3DFF, #6C63FF, #4FC3FF);
+    }
+    .podium-1 .bar-fill { background: linear-gradient(90deg, #B8860B, #F5B400, #FFE082); }
+    .podium-2 .bar-fill { background: linear-gradient(90deg, #607D8B, #B8C4D0, #ECEFF1); }
+    .podium-3 .bar-fill { background: linear-gradient(90deg, #8B5A00, #CD8B4A, #F5C98A); }
+
+    .score-col { text-align: right; flex-shrink: 0; }
+    .score-value {
+      font-family: var(--font-display);
+      font-size: 1.6rem; font-weight: 700;
+      letter-spacing: -0.03em;
+      font-variant-numeric: tabular-nums;
+      color: var(--cyan);
+      text-shadow: 0 0 12px rgba(79,195,255,0.45);
+    }
+    .score-label { font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+
+    .rank-card.updated, .podium-card.updated { animation: scoreFlash 0.9s ease; }
+    @keyframes scoreFlash {
+      0%   { box-shadow: 0 0 0 2px rgba(79,195,255,0.9), 0 0 28px rgba(10,61,255,0.5); }
+      100% { box-shadow: none; }
+    }
+
+    .pos-change {
+      position: absolute; top: 0.5rem; right: 0.5rem;
+      font-size: 0.65rem; font-weight: 700;
+      padding: 0.15rem 0.4rem; border-radius: 999px;
+    }
+    .pos-change.up   { background: rgba(16,185,129,0.2); color: #34D399; }
+    .pos-change.down { background: rgba(239,68,68,0.2);  color: #F87171; }
+
+    /* ── PÓDIO ── */
+    .podium-section {
+      display: flex; justify-content: center; align-items: flex-end;
+      gap: 0.75rem; margin-bottom: 2rem; padding: 0 0.5rem;
+    }
+    .podium-slot {
+      flex: 1; max-width: 280px;
+      display: flex; flex-direction: column; align-items: center;
+      animation: cardIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+    .podium-slot:nth-child(1) { animation-delay: 0.1s; }
+    .podium-slot:nth-child(3) { animation-delay: 0.2s; }
+    .podium-card {
+      width: 100%; border-radius: 1rem;
+      padding: 1.25rem 1rem 1rem;
+      text-align: center; position: relative; overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.07);
+      backdrop-filter: blur(6px);
+      transition: transform 0.3s ease;
+    }
+    .podium-card:hover { transform: translateY(-4px); }
+    .podium-1 {
+      background: linear-gradient(160deg, rgba(245,180,0,0.18) 0%, rgba(7,12,32,0.96) 70%);
+      border-color: rgba(245,180,0,0.4);
+      box-shadow: 0 0 48px rgba(245,180,0,0.14), inset 0 1px 0 rgba(245,180,0,0.15);
+    }
+    .podium-1::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(105deg, transparent 40%, rgba(245,180,0,0.08) 50%, transparent 60%);
+      background-size: 200%;
+      animation: shimmer 3s ease-in-out infinite;
+    }
+    @keyframes shimmer { from { background-position: -100%; } to { background-position: 200%; } }
+    .podium-2 {
+      background: linear-gradient(160deg, rgba(184,196,208,0.12) 0%, rgba(7,12,32,0.96) 70%);
+      border-color: rgba(184,196,208,0.28);
+    }
+    .podium-3 {
+      background: linear-gradient(160deg, rgba(205,139,74,0.12) 0%, rgba(7,12,32,0.96) 70%);
+      border-color: rgba(205,139,74,0.28);
+    }
+    .podium-crown { font-size: 1.6rem; margin-bottom: 0.4rem; }
+    .podium-shield-wrap { display: flex; justify-content: center; margin-bottom: 0.75rem; }
+    .podium-name {
+      font-weight: 800; font-size: 1rem; margin-bottom: 0.25rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+    }
+    .podium-1 .podium-name { color: var(--gold); }
+    .podium-2 .podium-name { color: var(--silver); }
+    .podium-3 .podium-name { color: var(--bronze); }
+    .podium-members {
+      font-size: 0.68rem; color: var(--muted); margin-bottom: 0.6rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .podium-score {
+      font-family: var(--font-display); font-weight: 700;
+      letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
+    }
+    .podium-1 .podium-score { font-size: 2.2rem; color: var(--gold); text-shadow: 0 0 18px rgba(245,180,0,0.4); }
+    .podium-2 .podium-score { font-size: 1.8rem; color: var(--silver); }
+    .podium-3 .podium-score { font-size: 1.8rem; color: var(--bronze); }
+    .podium-pts-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+    .podium-base {
+      width: 100%; border-radius: 0 0 0.5rem 0.5rem;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-display); font-weight: 700; letter-spacing: 0.05em;
+    }
+    .podium-base-1 { background: linear-gradient(135deg, #B8860B, #F5B400); height: 64px; color: #050816; font-size: 1.5rem; box-shadow: 0 8px 28px rgba(245,180,0,0.3); }
+    .podium-base-2 { background: linear-gradient(135deg, #607D8B, #B8C4D0); height: 48px; color: #050816; font-size: 1.2rem; }
+    .podium-base-3 { background: linear-gradient(135deg, #8B5A00, #CD8B4A); height: 36px; color: #050816; font-size: 1.1rem; }
+
+    .list-section { display: flex; flex-direction: column; gap: 0.6rem; }
+    .list-divider {
+      text-align: center; font-size: 0.7rem; color: var(--muted);
+      letter-spacing: 0.12em; text-transform: uppercase;
+      margin-bottom: 0.25rem; opacity: 0.7;
+    }
+
+    /* ── BOTÃO FINALIZAR ── */
+    .btn-finish {
+      display: block; margin: 2rem auto 0.5rem;
+      padding: 0.85rem 2.5rem;
+      background: linear-gradient(135deg, #0A3DFF, #6C63FF);
+      color: #fff;
+      font-family: var(--font-display); font-weight: 700; font-size: 1rem; letter-spacing: 0.05em;
+      border: none; border-radius: 999px; cursor: pointer;
+      box-shadow: 0 0 32px rgba(10,61,255,0.45), 0 4px 16px rgba(0,0,0,0.3);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn-finish:hover { transform: scale(1.05); box-shadow: 0 0 52px rgba(108,99,255,0.6); }
+    .btn-finish:active { transform: scale(0.97); }
+
+    .footer { text-align: center; margin-top: 1rem; font-size: 0.72rem; color: var(--muted); }
+    .footer .brand { color: var(--cyan); font-weight: 600; }
+
+    /* ── TOAST ── */
+    .toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 100; display: flex; flex-direction: column; gap: 0.5rem; }
+    .toast {
+      background: rgba(7,29,90,0.92);
+      border: 1px solid rgba(108,99,255,0.35);
+      backdrop-filter: blur(12px);
+      border-radius: 0.6rem; padding: 0.65rem 1rem; font-size: 0.82rem;
+      animation: toastIn 0.3s ease;
+    }
+    @keyframes toastIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    .podium-slot { min-width: 0; }
+    @media (max-width: 600px) {
+      .podium-section { gap: 0.4rem; padding: 0; }
+      .podium-card { padding: 1rem 0.5rem 0.75rem; }
+      .podium-1 .podium-score { font-size: 1.8rem; }
+      .podium-2 .podium-score, .podium-3 .podium-score { font-size: 1.4rem; }
+      .podium-name { font-size: 0.85rem; }
+      .shield { width: 42px; height: 48px; }
+      .shield-pos { font-size: 0.95rem; }
+      .score-value { font-size: 1.3rem; }
+      .group-name { font-size: 0.95rem; }
+      .brand-logo img { height: 48px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .event-title, .live-dot, .podium-1::before, .shield { animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="dna-canvas" aria-hidden="true"></canvas>
+<div class="bg-glow"></div>
+<div class="bg-vignette"></div>
+
+<div class="page">
+  <header>
+    <div class="brand-logo">
+      <img src="/img/logo-cf.svg" alt="CF Contabilidade" />
+    </div>
+    <div class="edition-badge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M6 3c0 6 12 6 12 12M18 3c0 6-12 6-12 12M6 21c0-2 1-3.5 3-4.5M18 21c0-2-1-3.5-3-4.5"/>
+        <path d="M8 6h8M8 12h8M8 18h8" opacity="0.6"/>
+      </svg>
+      CF Contabilidade
+    </div>
+    <h1 class="event-title" id="event-title">DNA CF</h1>
+    <p class="event-subtitle" id="event-subtitle"><strong>2026</strong> · Ranking ao Vivo</p>
+    <div class="live-badge"><span class="live-dot"></span> AO VIVO</div>
+  </header>
+
+  <div id="ranking-list"></div>
+
+  <button class="btn-finish" id="btn-finish" onclick="finalizarRanking()" style="display:none">
+    🧬 Finalizar Ranking
+  </button>
+
+  <div class="footer">
+    <span class="brand">DNA CF</span> · Atualizado em <span id="last-update">—</span>
+  </div>
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+<!-- ─── FILAMENTO DE DNA ANIMADO (canvas) ─────────────────────────── -->
+<script>
+(function () {
+  const canvas = document.getElementById('dna-canvas');
+  const ctx = canvas.getContext('2d');
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let W = 0, H = 0, dpr = 1;
+  let t = 0;
+  let raf = null;
+
+  // Paleta CF Contabilidade
+  const STRAND_A = { r: 10,  g: 61,  b: 255 };  // cf-blue
+  const STRAND_B = { r: 108, g: 99,  b: 255 };  // cf-blue-violet
+  const RUNG     = { r: 79,  g: 195, b: 255 };  // cyan claro
+  const rgba = (c, a) => `rgba(${c.r},${c.g},${c.b},${a})`;
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width  = Math.floor(W * dpr);
+    canvas.height = Math.floor(H * dpr);
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  /**
+   * Desenha uma hélice dupla vertical.
+   * cx        centro horizontal
+   * amp       amplitude (raio da hélice em px)
+   * pitch     px por volta completa
+   * tilt      inclinação (px de deslocamento horizontal por px vertical)
+   * phase     deslocamento de fase
+   * alpha     opacidade global
+   * speed     velocidade de rotação
+   */
+  function drawHelix({ cx, amp, pitch, tilt, phase, alpha, speed, rungGap, dotR }) {
+    const k = (Math.PI * 2) / pitch;
+    const ang0 = t * speed + phase;
+    const step = 4;
+
+    // Degraus (pares de bases) — desenhados primeiro para ficarem atrás
+    for (let y = -rungGap; y <= H + rungGap; y += rungGap) {
+      const a = k * y + ang0;
+      const s = Math.sin(a);
+      const depth = Math.cos(a);              // -1 (fundo) → 1 (frente)
+      const x0 = cx + tilt * (y - H / 2);
+      const x1 = x0 + amp * s;
+      const x2 = x0 - amp * s;
+      const dAlpha = alpha * (0.25 + 0.55 * ((depth + 1) / 2));
+      const grad = ctx.createLinearGradient(x1, y, x2, y);
+      grad.addColorStop(0,   rgba(STRAND_A, dAlpha));
+      grad.addColorStop(0.5, rgba(RUNG,     dAlpha * 0.9));
+      grad.addColorStop(1,   rgba(STRAND_B, dAlpha));
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 1.2 + 1.2 * ((depth + 1) / 2);
+      ctx.beginPath();
+      ctx.moveTo(x1, y);
+      ctx.lineTo(x2, y);
+      ctx.stroke();
+    }
+
+    // Fitas — duas passadas: "atrás" e "frente" para dar profundidade
+    for (let pass = 0; pass < 2; pass++) {
+      for (let strand = 0; strand < 2; strand++) {
+        const col = strand === 0 ? STRAND_A : STRAND_B;
+        const sgn = strand === 0 ? 1 : -1;
+        let drawing = false;
+        ctx.beginPath();
+        for (let y = -step; y <= H + step; y += step) {
+          const a = k * y + ang0;
+          const s = Math.sin(a) * sgn;
+          const depth = Math.cos(a) * sgn;
+          const front = depth >= 0;
+          if (front !== (pass === 1)) { drawing = false; continue; }
+          const x = cx + tilt * (y - H / 2) + amp * s;
+          if (!drawing) { ctx.moveTo(x, y); drawing = true; } else { ctx.lineTo(x, y); }
+        }
+        const a2 = pass === 1 ? alpha : alpha * 0.45;
+        ctx.strokeStyle = rgba(col, a2);
+        ctx.lineWidth = pass === 1 ? 2.6 : 1.6;
+        ctx.shadowBlur = pass === 1 ? 14 : 0;
+        ctx.shadowColor = rgba(col, a2);
+        ctx.lineCap = 'round';
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    // Nucleotídeos (pontos nas junções fita ↔ degrau)
+    for (let y = -rungGap; y <= H + rungGap; y += rungGap) {
+      const a = k * y + ang0;
+      const s = Math.sin(a);
+      const x0 = cx + tilt * (y - H / 2);
+      const pts = [
+        { x: x0 + amp * s, depth:  Math.cos(a), col: STRAND_A },
+        { x: x0 - amp * s, depth: -Math.cos(a), col: STRAND_B },
+      ];
+      for (const p of pts) {
+        const f = (p.depth + 1) / 2;
+        const r = dotR * (0.6 + 0.7 * f);
+        ctx.fillStyle = rgba(p.col, alpha * (0.4 + 0.6 * f));
+        ctx.shadowBlur = 10 * f;
+        ctx.shadowColor = rgba(p.col, alpha);
+        ctx.beginPath();
+        ctx.arc(p.x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  function frame() {
+    ctx.clearRect(0, 0, W, H);
+    const mobile = W < 700;
+
+    // Hélice principal — atravessa a tela em diagonal suave
+    drawHelix({
+      cx: W * (mobile ? 0.5 : 0.5),
+      amp: mobile ? W * 0.32 : Math.min(W * 0.24, 320),
+      pitch: mobile ? 520 : 680,
+      tilt: mobile ? 0.04 : 0.10,
+      phase: 0,
+      alpha: mobile ? 0.42 : 0.5,
+      speed: 0.55,
+      rungGap: mobile ? 26 : 30,
+      dotR: 3.2,
+    });
+
+    // Hélices secundárias nas laterais (mais finas e discretas) — só em telas largas
+    if (!mobile) {
+      drawHelix({
+        cx: W * 0.10, amp: 60, pitch: 360, tilt: -0.05, phase: 2.1,
+        alpha: 0.22, speed: 0.8, rungGap: 22, dotR: 2,
+      });
+      drawHelix({
+        cx: W * 0.90, amp: 60, pitch: 360, tilt: 0.05, phase: 4.0,
+        alpha: 0.22, speed: 0.7, rungGap: 22, dotR: 2,
+      });
+    }
+
+    if (!reduceMotion) {
+      t += 0.016;
+      raf = requestAnimationFrame(frame);
+    }
+  }
+
+  window.addEventListener('resize', () => { resize(); if (reduceMotion) frame(); });
+  document.addEventListener('visibilitychange', () => {
+    if (reduceMotion) return;
+    if (document.hidden) { cancelAnimationFrame(raf); raf = null; }
+    else if (!raf) raf = requestAnimationFrame(frame);
+  });
+
+  resize();
+  frame();
+})();
+</script>
+
+<!-- ─── RANKING (dados + realtime) ───────────────────────────────── -->
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+  let supabase = null;
+  let prevPositions = {};
+  let prevScores = {};
+  let maxScore = 0;
+
+  async function init() {
+    const cfg = await fetch('/api/config').then(r => r.json());
+    supabase = createClient(cfg.supabase.url, cfg.supabase.anonKey);
+    await loadRanking();
+    subscribeRealtime();
+  }
+
+  async function loadRanking() {
+    const res = await fetch('/api/groups');
+    if (!res.ok) return;
+    const data = await res.json();
+    render(data);
+    document.getElementById('last-update').textContent = new Date().toLocaleTimeString('pt-BR');
+  }
+
+  function changeBadge(g) {
+    const prevPos = prevPositions[g.id];
+    if (!prevPos || prevPos === g.position) return '';
+    return prevPos > g.position
+      ? `<span class="pos-change up">▲ ${prevPos - g.position}</span>`
+      : `<span class="pos-change down">▼ ${g.position - prevPos}</span>`;
+  }
+
+  function membersOf(g) {
+    return Array.isArray(g.participants) ? g.participants.map(p => p.name).join(' · ') : '';
+  }
+
+  function render(groups) {
+    const container = document.getElementById('ranking-list');
+
+    if (!groups.length) {
+      container.innerHTML = `
+        <div class="empty">
+          <div class="icon">🧬</div>
+          <h3>O DNA CF ainda não começou</h3>
+          <p>As equipes aparecerão aqui em tempo real.</p>
+        </div>`;
+      return;
+    }
+
+    maxScore = Math.max(groups[0]?.total_points || 1, 1);
+    const newPositions = {};
+    groups.forEach(g => newPositions[g.id] = g.position);
+
+    const top3 = groups.slice(0, 3);
+    const rest = groups.slice(3);
+
+    const podiumOrder = top3.length >= 3 ? [top3[1], top3[0], top3[2]]
+                      : top3.length === 2 ? [top3[1], top3[0]]
+                      : top3;
+    const podiumCl = { 1: 'podium-1', 2: 'podium-2', 3: 'podium-3' };
+    const baseCl   = { 1: 'podium-base-1', 2: 'podium-base-2', 3: 'podium-base-3' };
+
+    const podiumHTML = podiumOrder.length ? `
+      <div class="podium-section">
+        ${podiumOrder.map(g => {
+          const pos = g.position;
+          const isUpdated = prevScores[g.id] !== undefined && prevScores[g.id] !== g.total_points;
+          const members = membersOf(g);
+          return `
+            <div class="podium-slot">
+              <div class="podium-card ${podiumCl[pos] || 'podium-3'} ${isUpdated ? 'updated' : ''}" id="card-${g.id}">
+                ${changeBadge(g)}
+                ${pos === 1 ? '<div class="podium-crown">👑</div>' : ''}
+                <div class="podium-shield-wrap">${shieldSVG(pos, g.color)}</div>
+                <div class="podium-name">${esc(g.name)}</div>
+                ${members ? `<div class="podium-members">${esc(members)}</div>` : ''}
+                <div class="podium-score" id="score-${g.id}">${g.total_points}</div>
+                <div class="podium-pts-label">pontos</div>
+                <div class="bar-track" style="margin-top:0.6rem">
+                  <div class="bar-fill" id="bar-${g.id}" style="width:0%"></div>
+                </div>
+              </div>
+              <div class="podium-base ${baseCl[pos] || 'podium-base-3'}">${pos}º</div>
+            </div>`;
+        }).join('')}
+      </div>` : '';
+
+    const listHTML = rest.length ? `
+      <div class="list-divider">— classificação geral —</div>
+      <div class="list-section">
+        ${rest.map((g, idx) => {
+          const isUpdated = prevScores[g.id] !== undefined && prevScores[g.id] !== g.total_points;
+          const members = membersOf(g);
+          return `
+            <div class="rank-card ${isUpdated ? 'updated' : ''}" id="card-${g.id}" style="animation-delay:${(idx + 3) * 0.06}s">
+              ${changeBadge(g)}
+              <div class="shield-wrap">${shieldSVG(g.position, g.color)}</div>
+              <div class="card-body">
+                <div class="group-name">${esc(g.name)}</div>
+                ${members ? `<div class="group-members">${esc(members)}</div>` : '<div style="height:0.75rem"></div>'}
+                <div class="bar-track"><div class="bar-fill" id="bar-${g.id}" style="width:0%"></div></div>
+              </div>
+              <div class="score-col">
+                <div class="score-value" id="score-${g.id}">${g.total_points}</div>
+                <div class="score-label">pts</div>
+              </div>
+            </div>`;
+        }).join('')}
+      </div>` : '';
+
+    container.innerHTML = podiumHTML + listHTML;
+
+    requestAnimationFrame(() => {
+      groups.forEach(g => {
+        const bar = document.getElementById(`bar-${g.id}`);
+        if (bar) bar.style.width = `${Math.max(4, Math.round((g.total_points / maxScore) * 100))}%`;
+      });
+    });
+
+    prevPositions = newPositions;
+    groups.forEach(g => { prevScores[g.id] = g.total_points; });
+
+    const btnFinish = document.getElementById('btn-finish');
+    if (groups[0].total_points > 0) btnFinish.style.display = 'block';
+  }
+
+  window.finalizarRanking = function () {
+    const card1 = document.querySelector('.podium-1');
+    const btn = document.getElementById('btn-finish');
+    let originX = 0.5, originY = 0.3;
+    if (card1) {
+      const r = card1.getBoundingClientRect();
+      originX = (r.left + r.width / 2) / window.innerWidth;
+      originY = (r.top + r.height / 4) / window.innerHeight;
+    }
+    const colors = ['#F5B400', '#FFE082', '#0A3DFF', '#6C63FF', '#4FC3FF', '#ffffff'];
+    confetti({ particleCount: 180, spread: 90, origin: { x: originX, y: originY }, colors, scalar: 1.2, zIndex: 9999 });
+    const end = Date.now() + 4000;
+    (function burst() {
+      confetti({ particleCount: 6, angle: 60,  spread: 55, origin: { x: 0, y: 0.6 }, colors, zIndex: 9999 });
+      confetti({ particleCount: 6, angle: 120, spread: 55, origin: { x: 1, y: 0.6 }, colors, zIndex: 9999 });
+      if (Date.now() < end) requestAnimationFrame(burst);
+    })();
+    btn.textContent = '🎉 Parabéns ao 1º lugar!';
+    btn.style.background = 'linear-gradient(135deg,#F5B400,#FFE082)';
+    btn.style.color = '#050816';
+    btn.disabled = true;
+  };
+
+  function shieldSVG(pos, groupColor) {
+    const cfgs = {
+      1: { fill: '#F5B400', label: '👑' },
+      2: { fill: '#B8C4D0', label: '🥈' },
+      3: { fill: '#CD8B4A', label: '🥉' },
+    };
+    const cfg = cfgs[pos] || { fill: groupColor || '#0A3DFF', label: null };
+    const icon = pos <= 3
+      ? `<div class="shield-icon">${cfg.label}</div>`
+      : `<div class="shield-pos" style="color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.5)">${pos}º</div>`;
+    return `
+      <div class="shield">
+        <svg class="shield-svg" viewBox="0 0 52 58" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M26 2L4 10V28C4 41 14 52 26 56C38 52 48 41 48 28V10L26 2Z"
+                fill="${cfg.fill}" fill-opacity="0.18" stroke="${cfg.fill}" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M26 6L7 13V28C7 39.5 15.5 50 26 54C36.5 50 45 39.5 45 28V13L26 6Z" fill="${cfg.fill}" fill-opacity="0.08"/>
+        </svg>
+        ${icon}
+      </div>`;
+  }
+
+  function subscribeRealtime() {
+    supabase
+      .channel('ranking-live-dna')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'scores' },       handleChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'groups' },       handleChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'participants' }, handleChange)
+      .subscribe();
+  }
+
+  async function handleChange() {
+    await loadRanking();
+    toast('🧬 Ranking atualizado!');
+  }
+
+  function esc(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function toast(msg) {
+    const c = document.getElementById('toasts');
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = msg;
+    c.appendChild(el);
+    setTimeout(() => el.remove(), 3000);
+  }
+
+  init().catch(console.error);
+</script>
+</body>
+</html>

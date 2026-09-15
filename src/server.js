@@ -41,6 +41,11 @@ app.get('/admin', (req, res) => {
   res.sendFile(join(__dirname, '..', 'public', 'admin.html'));
 });
 
+// Painel DNA CF — ranking com identidade CF Contabilidade
+app.get(['/dna-cf', '/dna', '/dnacf'], (req, res) => {
+  res.sendFile(join(__dirname, '..', 'public', 'dna-cf.html'));
+});
+
 app.use((err, req, res, _next) => {
   console.error('[ERROR]', err.message);
   res.status(500).json({ error: err.message || 'Erro interno do servidor' });
